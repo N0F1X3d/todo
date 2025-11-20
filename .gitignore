@@ -34,3 +34,14 @@ logs/
 
 # Temporary files
 tmp/
+
+# Generated files
+gen/
+
+# Binaries
+bin/
+*.exe
+
+# Go
+vendor/
+go.work

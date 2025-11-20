@@ -1,0 +1,34 @@
+version: "3"
+
+tasks:
+  generate:
+    aliases:
+      - gen
+    desc: "Generate code from proto files"
+    cmds:
+      - protoc -I proto proto/*.proto --go_out=./gen/go --go_opt=paths=source_relative --go-grpc_out=./gen/go --go-grpc_opt=paths=source_relative
+      - echo "Proto files generated in ./gen/go"
+
+  deps:
+    desc: "Install dependencies for proto generation"
+    cmds:
+      - go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
+      - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
+      - echo "Dependencies installed"
+
+  build:
+    desc: "Build all services"
+    cmds:
+      - cd api-service && go build -o ../bin/api-service ./cmd/api-service
+      - cd db-service && go build -o ../bin/db-service ./cmd/db-service
+      - echo "All services built"
+
+  run-db:
+    desc: "Run DB service"
+    cmds:
+      - cd db-service && go run ./cmd/db-service
+
+  run-api:
+    desc: "Run API service"
+    cmds:
+      - cd api-service && go run ./cmd/api-service
