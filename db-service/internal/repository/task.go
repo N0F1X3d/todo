@@ -115,14 +115,64 @@ func (r *TaskRepository) GetAllTasks() ([]models.Task, error) {
 	return tasks, nil
 }
 
-// TODO UpdateTask
-// UpdateTask обновляет задачу в базе данных completed -> true
-func (r *TaskRepository) UpdateTask(id int, req models.UpdateTaskRequest) (*models.Task, error) {
-	return nil, nil
+// UpdateTask обновляет задачу в базе данных по переданному id задачи completed -> true
+func (r *TaskRepository) DoneTask(id int) (*models.Task, error) {
+	const op = "UpdateTask"
+	r.log.LogRequest(op, map[string]interface{}{"id": id})
+	start := time.Now()
+
+	var task models.Task
+	query := `UPDATE tasks
+			  SET completed = true, updated_at = CURRENT_TIMESTAMP
+			  WHERE id = $1
+			  RETURNING id, title, description, completed, created_at, updated_at`
+	r.log.LogQuery(op, query, id)
+
+	err := r.db.QueryRow(query, id).Scan(
+		&task.ID, &task.Title, &task.Description, &task.Completed, &task.CreatedAt, &task.UpdatedAt,
+	)
+	duration := time.Since(start).Milliseconds()
+	if err != nil {
+		if err == sql.ErrNoRows {
+			r.log.Warn("task not found", "function", op, "id", id, "duration", duration)
+		} else {
+			r.log.ErrorWithContext("failed to complete task", err, op, "id", id, "duration", duration)
+		}
+		return nil, err
+	}
+
+	r.log.LogResponse(op, task)
+	r.log.LogQueryResult(op, duration, 1)
+	return &task, nil
 }
 
-// TODO DeleteTask
 // DeleteTask удаляет задачу из базы данных по ее id
 func (r *TaskRepository) DeleteTask(id int) error {
+	const op = "DeleteTask"
+	r.log.LogRequest(op, map[string]interface{}{"id": id})
+	start := time.Now()
+
+	query := `DELETE FROM tasks WHERE id = $1`
+
+	r.log.LogQuery(op, query, id)
+	res, err := r.db.Exec(query, id)
+	duration := time.Since(start).Milliseconds()
+
+	if err != nil {
+		r.log.ErrorWithContext("failed to delete task", err, op, "id", id, "duration", duration)
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		r.log.ErrorWithContext("failed to get rows affected", err, op, "id", id, "duration", duration)
+		return err
+	}
+	if rowsAffected == 0 {
+		r.log.Warn("task not found for delete", "function", op, "id", id, "duration", duration)
+		return sql.ErrNoRows
+	}
+
+	r.log.LogResponse(op, map[string]interface{}{"deleted": true, "id": id})
+	r.log.LogQueryResult(op, duration, rowsAffected)
 	return nil
 }

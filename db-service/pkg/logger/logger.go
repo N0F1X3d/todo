@@ -31,7 +31,7 @@ func New(logDir string) *Logger {
 	handler := slog.NewJSONHandler(logFile, &slog.HandlerOptions{Level: slog.LevelDebug})
 
 	baseLogger := slog.New(handler)
-	logger := baseLogger.With("service:", serviceName)
+	logger := baseLogger.With("service", serviceName)
 	return &Logger{
 		Logger:      logger,
 		serviceName: serviceName,

@@ -15,20 +15,54 @@ tasks:
       - go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
       - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
       - echo "Dependencies installed"
-
-  build:
-    desc: "Build all services"
+  postgres-up:
+    desc: "Start PostgreSQL database"
     cmds:
-      - cd api-service && go build -o ../bin/api-service ./cmd/api-service
-      - cd db-service && go build -o ../bin/db-service ./cmd/db-service
-      - echo "All services built"
+      - docker run -d --name postgres -p 5432:5432 -e POSTGRES_DB=todo -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password postgres:15
+      - echo "PostgreSQL started on localhost:5432"
 
-  run-db:
-    desc: "Run DB service"
+  postgres-down:
+    desc: "Stop PostgreSQL database"
     cmds:
-      - cd db-service && go run ./cmd/db-service
+      - docker stop postgres || true
+      - docker rm postgres || true
+      - echo "PostgreSQL stopped"
 
-  run-api:
-    desc: "Run API service"
+  migrate:
+    desc: "Apply database migrations"
     cmds:
-      - cd api-service && go run ./cmd/api-service
+      - sleep 5  # Ждем запуска БД
+      - docker exec -i postgres psql -U user -d todo < db-service/migrations/001_create_tasks_table.up.sql
+      - echo "Migration applied"
+
+  db-setup:
+    desc: "Setup database (start + migrate)"
+    cmds:
+      - task: postgres-up
+      - task: migrate
+
+  psql:
+    desc: "Connect to PostgreSQL"
+    cmds:
+      - docker exec -it postgres psql -U user -d todo
+  test-db:
+    desc: "Start test database"
+    cmds:
+      - docker run -d --name postgres-test -p 5433:5432 -e POSTGRES_DB=todo_test -e POSTGRES_USER=test_user -e POSTGRES_PASSWORD=test_password postgres:15
+      - sleep 15
+      - docker exec -i postgres-test psql -U test_user -d todo_test -c "CREATE TABLE IF NOT EXISTS tasks (id SERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL, description TEXT, completed BOOLEAN DEFAULT FALSE, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);"
+      - echo "Test database started on localhost:5433"
+
+  test-down:
+    desc: "Stop test database"
+    cmds:
+      - docker stop postgres-test || true
+      - docker rm postgres-test || true
+      - echo "Test database stopped"
+
+  test:
+    desc: "Run tests for db-service"
+    cmds:
+      - task: test-db
+      - cd db-service && go test -v ./internal/repository
+      - task: test-down
