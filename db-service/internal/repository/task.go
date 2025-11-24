@@ -116,7 +116,7 @@ func (r *TaskRepository) GetAllTasks() ([]models.Task, error) {
 }
 
 // UpdateTask обновляет задачу в базе данных по переданному id задачи completed -> true
-func (r *TaskRepository) DoneTask(id int) (*models.Task, error) {
+func (r *TaskRepository) CompleteTask(id int) (*models.Task, error) {
 	const op = "UpdateTask"
 	r.log.LogRequest(op, map[string]interface{}{"id": id})
 	start := time.Now()

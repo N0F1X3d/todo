@@ -1,13 +1,14 @@
 syntax = "proto3";
 
 package proto;
-option go_package = "github.com/N0F1X3d/todo/gen/go";
+
+option go_package = "github.com/N0F1X3d/todo/gen/go/proto";
 
 service TaskService {
   rpc CreateTask(CreateTaskRequest) returns (TaskResponse) {}
-  rpc GetTask(GetTaskRequest) returns (TaskResponse) {}
+  rpc GetTaskByID(GetTaskByIDRequest) returns (TaskResponse) {}
   rpc GetAllTasks(GetAllTasksRequest) returns (GetAllTasksResponse) {}
-  rpc UpdateTask(UpdateTaskRequest) returns (TaskResponse) {}
+  rpc CompleteTask(CompleteTaskRequest) returns (TaskResponse) {}
   rpc DeleteTask(DeleteTaskRequest) returns (DeleteTaskResponse) {}
 }
 
@@ -16,17 +17,14 @@ message CreateTaskRequest {
   string description = 2;
 }
 
-message GetTaskRequest {
+message GetTaskByIDRequest {
   int32 id = 1;
 }
 
 message GetAllTasksRequest {}
 
-message UpdateTaskRequest {
+message CompleteTaskRequest {
   int32 id = 1;
-  optional string title = 2;
-  optional string description = 3;
-  optional bool completed = 4;
 }
 
 message DeleteTaskRequest {

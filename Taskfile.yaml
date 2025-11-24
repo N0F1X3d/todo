@@ -6,22 +6,16 @@ tasks:
       - gen
     desc: "Generate code from proto files"
     cmds:
-      - protoc -I proto proto/*.proto --go_out=./gen/go --go_opt=paths=source_relative --go-grpc_out=./gen/go --go-grpc_opt=paths=source_relative
-      - echo "Proto files generated in ./gen/go"
+      - protoc -I proto proto/*.proto --go_out=./db-service/pkg/proto --go_opt=paths=source_relative --go-grpc_out=./db-service/pkg/proto --go-grpc_opt=paths=source_relative
+      - echo "Proto files generated in ./db-service/pkg/proto"
 
-  deps:
-    desc: "Install dependencies for proto generation"
-    cmds:
-      - go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.28
-      - go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.2
-      - echo "Dependencies installed"
-  postgres-up:
+  db-up:
     desc: "Start PostgreSQL database"
     cmds:
       - docker run -d --name postgres -p 5432:5432 -e POSTGRES_DB=todo -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password postgres:15
       - echo "PostgreSQL started on localhost:5432"
 
-  postgres-down:
+  db-down:
     desc: "Stop PostgreSQL database"
     cmds:
       - docker stop postgres || true
@@ -38,7 +32,7 @@ tasks:
   db-setup:
     desc: "Setup database (start + migrate)"
     cmds:
-      - task: postgres-up
+      - task: db-up
       - task: migrate
 
   psql:

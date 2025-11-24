@@ -156,7 +156,7 @@ func TestGetAllTasks(t *testing.T) {
 	}
 }
 
-func TestDoneTask(t *testing.T) {
+func TestCompleteTask(t *testing.T) {
 	// Создаем задачу
 	req := models.CreateTaskRequest{
 		Title:       "Complete Test Task",
@@ -168,15 +168,15 @@ func TestDoneTask(t *testing.T) {
 	}
 
 	// Отмечаем как выполненную
-	completedTask, err := testRepo.DoneTask(createdTask.ID)
+	completedTask, err := testRepo.CompleteTask(createdTask.ID)
 	if err != nil {
-		t.Fatalf("DoneTask failed: %v", err)
+		t.Fatalf("CompleteTask failed: %v", err)
 	}
 
 	if !completedTask.Completed {
 		t.Error("Expected task to be completed")
 	}
-	if completedTask.UpdatedAt == createdTask.UpdatedAt {
+	if completedTask.UpdatedAt.Equal(createdTask.UpdatedAt) {
 		t.Error("Expected updated_at to change after completion")
 	}
 }
