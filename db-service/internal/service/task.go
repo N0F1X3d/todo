@@ -61,7 +61,7 @@ func (t *TaskService) GetTaskByID(id int) (*models.Task, error) {
 
 	start := time.Now()
 	if id <= 0 {
-		err := errors.New("invalid task ID")
+		err := errors.New("invalid task id")
 		t.log.ErrorWithContext("validation failed", err, op, "task_id", id)
 		return nil, err
 	}
