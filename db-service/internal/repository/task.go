@@ -8,6 +8,15 @@ import (
 	"github.com/N0F1X3d/todo/db-service/pkg/logger"
 )
 
+//go:generate mockery --name=TaskRepositoryInterface --filename=task_repository_interface.go --output=../../mocks --case=underscore
+type TaskRepositoryInterface interface {
+	CreateTask(req models.CreateTaskRequest) (*models.Task, error)
+	GetTaskByID(id int) (*models.Task, error)
+	GetAllTasks() ([]models.Task, error)
+	CompleteTask(id int) (*models.Task, error)
+	DeleteTask(id int) error
+}
+
 // TaskRepository предоставляет методы для работы с PostgreSQL
 // Реализует паттерн Repository для абстракции доступа к данным
 type TaskRepository struct {

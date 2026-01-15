@@ -1,6 +1,7 @@
 package service
 
 import (
+	"database/sql"
 	"errors"
 	"strings"
 	"time"
@@ -10,14 +11,23 @@ import (
 	"github.com/N0F1X3d/todo/db-service/pkg/logger"
 )
 
+//go:generate mockery --name=TaskServiceInterface --filename=task_service_interface.go --output=../../mocks --case=underscore
+type TaskServiceInterface interface {
+	CreateTask(req models.CreateTaskRequest) (*models.Task, error)
+	GetTaskByID(id int) (*models.Task, error)
+	GetAllTasks() ([]models.Task, error)
+	CompleteTask(id int) (*models.Task, error)
+	DeleteTask(id int) error
+}
+
 // TaskService предоставляет бизнес-логику для работы с задачами.
 type TaskService struct {
-	repo *repository.TaskRepository
+	repo repository.TaskRepositoryInterface
 	log  *logger.Logger
 }
 
 // NewTaskService создает новый экземпляр TaskService
-func NewTaskService(repo *repository.TaskRepository, log *logger.Logger) *TaskService {
+func NewTaskService(repo repository.TaskRepositoryInterface, log *logger.Logger) *TaskService {
 	return &TaskService{
 		repo: repo,
 		log:  log.WithComponent("service").WithFunction("TaskService"),
@@ -67,8 +77,12 @@ func (t *TaskService) GetTaskByID(id int) (*models.Task, error) {
 	}
 	task, err := t.repo.GetTaskByID(id)
 	if err != nil {
-		t.log.ErrorWithContext("failed to get task", err, op)
-		return nil, err
+		if err == sql.ErrNoRows {
+			t.log.Warn("task not found", "function", op, "task_id", id)
+			return nil, errors.New("task not found")
+		}
+		t.log.ErrorWithContext("database error", err, op, "task_id", id)
+		return nil, errors.New("internal server error")
 	}
 
 	duration := time.Since(start).Milliseconds()
@@ -88,8 +102,8 @@ func (t *TaskService) GetAllTasks() ([]models.Task, error) {
 
 	tasks, err := t.repo.GetAllTasks()
 	if err != nil {
-		t.log.ErrorWithContext("failed to get tasks", err, op)
-		return nil, err
+		t.log.ErrorWithContext("database error", err, op)
+		return nil, errors.New("internal server error")
 	}
 
 	duration := time.Since(start).Milliseconds()

@@ -12,15 +12,28 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+//go:generate mockery --name=TaskServerInterface --filename=task_server_interface.go --output=../../mocks --case=underscore
+
+// TaskServerInterface определяет контракт для gRPC сервера задач
+type TaskServerInterface interface {
+	CreateTask(ctx context.Context, req *proto.CreateTaskRequest) (*proto.TaskResponse, error)
+	GetTaskByID(ctx context.Context, req *proto.GetTaskByIDRequest) (*proto.TaskResponse, error)
+	GetAllTasks(ctx context.Context, req *proto.GetAllTasksRequest) (*proto.GetAllTasksResponse, error)
+	CompleteTask(ctx context.Context, req *proto.CompleteTaskRequest) (*proto.TaskResponse, error)
+	DeleteTask(ctx context.Context, req *proto.DeleteTaskRequest) (*proto.DeleteTaskResponse, error)
+	// Наследуем методы от встроенного интерфейса
+	proto.TaskServiceServer
+}
+
 // TaskServer реализует gRPC сервер для работы с базой данных
 type TaskServer struct {
 	proto.UnimplementedTaskServiceServer
-	service *service.TaskService
+	service service.TaskServiceInterface
 	log     *logger.Logger
 }
 
 // NewTaskServer
-func NewTaskServer(service *service.TaskService, log *logger.Logger) *TaskServer {
+func NewTaskServer(service service.TaskServiceInterface, log *logger.Logger) *TaskServer {
 	return &TaskServer{
 		service: service,
 		log:     log.WithComponent("Server").WithFunction("NewTaskServer"),
