@@ -64,7 +64,7 @@ func (s *TaskServer) CreateTask(ctx context.Context, req *proto.CreateTaskReques
 		case "title can not be empty":
 			return nil, status.Error(codes.InvalidArgument, "title can not be empty")
 		case "title too long, maximum 255 characters":
-			return nil, status.Error(codes.InvalidArgument, "title to long, maximum 255 characters")
+			return nil, status.Error(codes.InvalidArgument, "title too long, maximum 255 characters")
 		default:
 			return nil, status.Error(codes.Internal, "internal server error")
 		}
