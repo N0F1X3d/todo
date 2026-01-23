@@ -247,7 +247,7 @@ func TestTaskServer_GetAllTasks_Success(t *testing.T) {
 	testLogger := logger.New("test-logs")
 
 	createdTime := time.Now()
-	tasks := []*models.Task{
+	tasks := []models.Task{
 		{
 			ID:          1,
 			Title:       "Task 1",
@@ -291,7 +291,7 @@ func TestTaskServer_GetAllTasks_Empty(t *testing.T) {
 	mockService := mocks.NewTaskServiceInterface(t)
 	testLogger := logger.New("test-logs")
 
-	mockService.On("GetAllTasks").Return([]*models.Task{}, nil)
+	mockService.On("GetAllTasks").Return([]models.Task{}, nil)
 
 	server := server.NewTaskServer(mockService, testLogger)
 

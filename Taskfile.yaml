@@ -1,62 +1,101 @@
 version: "3"
 
+dotenv: [".env"]
+
+vars:
+  SERVICE_NAME: db-service
+  SERVICE_DIR: db-service
+  DOCKER_COMPOSE: docker compose
+
 tasks:
-  generate:
-    aliases:
-      - gen
-    desc: "Generate code from proto files"
-    cmds:
-      - protoc -I proto proto/*.proto --go_out=./db-service/pkg/proto --go_opt=paths=source_relative --go-grpc_out=./db-service/pkg/proto --go-grpc_opt=paths=source_relative
-      - echo "Proto files generated in ./db-service/pkg/proto"
 
-  db-up:
-    desc: "Start PostgreSQL database"
+  default:
+    desc: "Показать список задач"
     cmds:
-      - docker run -d --name postgres -p 5432:5432 -e POSTGRES_DB=todo -e POSTGRES_USER=user -e POSTGRES_PASSWORD=password postgres:15
-      - echo "PostgreSQL started on localhost:5432"
+      - task --list
 
-  db-down:
-    desc: "Stop PostgreSQL database"
-    cmds:
-      - docker stop postgres || true
-      - docker rm postgres || true
-      - echo "PostgreSQL stopped"
+  # ------------------------
+  #  PROTO
+  # ------------------------
 
-  migrate:
-    desc: "Apply database migrations"
+  proto:
+    desc: "Generate gRPC code from proto files"
+    dir: "{{.SERVICE_DIR}}"
     cmds:
-      - sleep 5  # Ждем запуска БД
-      - docker exec -i postgres psql -U user -d todo < db-service/migrations/001_create_tasks_table.up.sql
-      - echo "Migration applied"
+      - |
+        protoc \
+          --go_out=. \
+          --go-grpc_out=. \
+          proto/*.proto
 
-  db-setup:
-    desc: "Setup database (start + migrate)"
-    cmds:
-      - task: db-up
-      - task: migrate
+  # ------------------------
+  #  DATABASE
+  # ------------------------
 
-  psql:
-    desc: "Connect to PostgreSQL"
+  db:up:
+    desc: "Start postgres"
     cmds:
-      - docker exec -it postgres psql -U user -d todo
-  test-db:
-    desc: "Start test database"
-    cmds:
-      - docker run -d --name postgres-test -p 5433:5432 -e POSTGRES_DB=todo_test -e POSTGRES_USER=test_user -e POSTGRES_PASSWORD=test_password postgres:15
-      - sleep 15
-      - docker exec -i postgres-test psql -U test_user -d todo_test -c "CREATE TABLE IF NOT EXISTS tasks (id SERIAL PRIMARY KEY, title VARCHAR(255) NOT NULL, description TEXT, completed BOOLEAN DEFAULT FALSE, created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP, updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP);"
-      - echo "Test database started on localhost:5433"
+      - "{{.DOCKER_COMPOSE}} up -d postgres"
 
-  test-down:
-    desc: "Stop test database"
+  db:down:
+    desc: "Stop postgres"
     cmds:
-      - docker stop postgres-test || true
-      - docker rm postgres-test || true
-      - echo "Test database stopped"
+      - "{{.DOCKER_COMPOSE}} down"
+
+  db:logs:
+    desc: "Postgres logs"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} logs -f postgres"
+
+  # ------------------------
+  #  LOCAL RUN
+  # ------------------------
+
+  run:
+    desc: "Run db-service locally"
+    dir: "{{.SERVICE_DIR}}"
+    cmds:
+      - go run ./cmd/db-service
+
+  # ------------------------
+  #  DOCKER
+  # ------------------------
+
+  docker:build:
+    desc: "Build db-service docker image"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} build {{.SERVICE_NAME}}"
+
+  docker:up:
+    desc: "Run all services in docker"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} up -d"
+
+  docker:down:
+    desc: "Stop all docker services"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} down"
+
+  docker:logs:
+    desc: "Logs from db-service"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} logs -f {{.SERVICE_NAME}}"
+
+  # ------------------------
+  #  TESTS
+  # ------------------------
 
   test:
-    desc: "Run tests for db-service"
+    desc: "Run all tests"
+    dir: "{{.SERVICE_DIR}}"
     cmds:
-      - task: test-db
-      - cd db-service && go test -v ./internal/repository
-      - task: test-down
+      - go test ./... -v
+
+  # ------------------------
+  #  CLEAN
+  # ------------------------
+
+  clean:
+    desc: "Clean build artifacts"
+    cmds:
+      - rm -rf {{.SERVICE_DIR}}/bin

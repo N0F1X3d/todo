@@ -143,6 +143,7 @@ func (t *TaskService) CompleteTask(id int) (*models.Task, error) {
 	taskCompleted, err := t.repo.CompleteTask(id)
 	if err != nil {
 		t.log.ErrorWithContext("failed to complete task", err, op, "task_id", id)
+		return nil, err
 	}
 
 	duration := time.Since(start).Milliseconds()
@@ -168,6 +169,7 @@ func (t *TaskService) DeleteTask(id int) error {
 	if err != nil {
 		err := errors.New("failed to find task")
 		t.log.ErrorWithContext("task not found", err, op, "task_id", id)
+		return err
 	}
 
 	err = t.repo.DeleteTask(id)

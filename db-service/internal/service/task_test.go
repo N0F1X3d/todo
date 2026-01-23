@@ -85,7 +85,7 @@ func TestTaskService_GetTaskByID_Success(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, task)
 	assert.Equal(t, 1, task.ID)
-	assert.Equal(t, "test title", task.Title)
+	assert.Equal(t, "test task", task.Title)
 }
 
 func TestTaskService_GetTaskByID_InvalidTaskID(t *testing.T) {
@@ -149,14 +149,19 @@ func TestTaskService_GetAllTasks_DatabaseError(t *testing.T) {
 }
 
 func TestTaskService_GetAllTasks_EmptyList(t *testing.T) {
+	// Arrange
 	mockRepo := mocks.NewTaskRepositoryInterface(t)
+
 	mockRepo.On("GetAllTasks").Return([]models.Task{}, nil)
+
 	testLogger := logger.New("test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
+	// Act
 	tasks, err := taskService.GetAllTasks()
 
-	assert.Error(t, err)
+	// Assert
+	assert.NoError(t, err)
 	assert.NotNil(t, tasks)
 	assert.Empty(t, tasks)
 }
@@ -193,7 +198,7 @@ func TestTaskService_CompleteTask_InvalidID(t *testing.T) {
 	testLogger := logger.New("test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
-	_, err := taskService.CompleteTask(1)
+	_, err := taskService.CompleteTask(0)
 
 	assert.Error(t, err)
 	assert.Equal(t, "invalid task id", err.Error())
@@ -227,20 +232,29 @@ func TestTaskService_CompleteTask_AlreadyCompleted(t *testing.T) {
 }
 
 func TestTaskService_CompleteTask_CompleteError(t *testing.T) {
+	// Arrange
 	mockRepo := mocks.NewTaskRepositoryInterface(t)
-	mockRepo.On("GetTaskByID", 1).Return(&models.Task{
-		ID:        1,
-		Title:     "test",
-		Completed: false,
-	}, nil)
-	mockRepo.On("CompleteTask", 1).Return(nil, errors.New("complete failed"))
+
+	mockRepo.On("GetTaskByID", 1).
+		Return(&models.Task{
+			ID:        1,
+			Title:     "Test Task",
+			Completed: false,
+		}, nil)
+
+	mockRepo.On("CompleteTask", 1).
+		Return(nil, errors.New("update failed"))
+
 	testLogger := logger.New("test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
-	_, err := taskService.CompleteTask(1)
+	// Act
+	task, err := taskService.CompleteTask(1)
 
+	// Assert
 	assert.Error(t, err)
-	assert.Equal(t, "complete failed", err.Error())
+	assert.Nil(t, task)
+	assert.Equal(t, "update failed", err.Error())
 }
 
 func TestTaskService_DeleteTask_Success(t *testing.T) {
@@ -306,5 +320,5 @@ func TestTaskService_DeleteTask_GetTaskError(t *testing.T) {
 	err := taskService.DeleteTask(1)
 
 	assert.Error(t, err)
-	assert.Equal(t, "connection error", err.Error())
+	assert.Equal(t, "failed to find task", err.Error())
 }

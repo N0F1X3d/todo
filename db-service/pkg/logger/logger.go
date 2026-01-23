@@ -79,3 +79,8 @@ func (l *Logger) LogQuery(function string, query string, args ...interface{}) {
 func (l *Logger) LogQueryResult(function string, duration int64, rowsAffected int64) {
 	l.Debug("query result", "function", function, "duration_ms", duration, "rows_affected", rowsAffected)
 }
+
+func (l *Logger) Fatal(msg string, fields ...any) {
+	l.Error(msg, fields...)
+	os.Exit(1)
+}
