@@ -12,8 +12,7 @@ type Logger struct {
 }
 
 // New создает логгер для db-service
-func New(logDir string) *Logger {
-	serviceName := "db-service"
+func New(serviceName string, logDir string) *Logger {
 
 	if err := os.MkdirAll(logDir, 0755); err != nil {
 		panic("failed to create log directory for: " + err.Error())
@@ -68,16 +67,6 @@ func (l *Logger) LogRequest(function string, request interface{}) {
 // LogResponse логирует исходящий ответ
 func (l *Logger) LogResponse(function string, response interface{}) {
 	l.Info("outgoing response", "function", function, "response", response)
-}
-
-// LogQuery логирует SQL запрос (специфично для DB-service)
-func (l *Logger) LogQuery(function string, query string, args ...interface{}) {
-	l.Debug("sql query", "function", function, "query", query, "args", args)
-}
-
-// LogQueryResult логирует результат SQL запроса
-func (l *Logger) LogQueryResult(function string, duration int64, rowsAffected int64) {
-	l.Debug("query result", "function", function, "duration_ms", duration, "rows_affected", rowsAffected)
 }
 
 func (l *Logger) Fatal(msg string, fields ...any) {

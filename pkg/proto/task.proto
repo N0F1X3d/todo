@@ -2,8 +2,7 @@ syntax = "proto3";
 
 package proto;
 
-option go_package = "github.com/N0F1X3d/todo/gen/go/proto";
-
+option go_package = "github.com/N0F1X3d/todo/pkg/proto";
 service TaskService {
   rpc CreateTask(CreateTaskRequest) returns (TaskResponse) {}
   rpc GetTaskByID(GetTaskByIDRequest) returns (TaskResponse) {}

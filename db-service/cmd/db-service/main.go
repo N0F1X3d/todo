@@ -18,7 +18,7 @@ import (
 	"github.com/N0F1X3d/todo/db-service/internal/service"
 	"github.com/N0F1X3d/todo/pkg/logger"
 
-	pb "github.com/N0F1X3d/todo/db-service/pkg/proto"
+	pb "github.com/N0F1X3d/todo/pkg/proto"
 )
 
 func main() {

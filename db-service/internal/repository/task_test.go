@@ -44,7 +44,7 @@ func setup() {
 	}
 
 	// Инициализация логгера (логи в тестах не нужны, но репозиторий требует)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	// Создание репозитория
 	testRepo = repository.NewTaskRepository(testDB, testLogger)
