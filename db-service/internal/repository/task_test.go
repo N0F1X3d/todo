@@ -8,7 +8,7 @@ import (
 
 	"github.com/N0F1X3d/todo/db-service/internal/models"
 	"github.com/N0F1X3d/todo/db-service/internal/repository"
-	"github.com/N0F1X3d/todo/db-service/pkg/logger"
+	"github.com/N0F1X3d/todo/pkg/logger"
 
 	_ "github.com/lib/pq"
 )

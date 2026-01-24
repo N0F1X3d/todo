@@ -5,7 +5,7 @@ import (
 	"time"
 
 	"github.com/N0F1X3d/todo/db-service/internal/models"
-	"github.com/N0F1X3d/todo/db-service/pkg/logger"
+	"github.com/N0F1X3d/todo/pkg/logger"
 )
 
 //go:generate mockery --name=TaskRepositoryInterface --filename=task_repository_interface.go --output=../../mocks --case=underscore
@@ -42,7 +42,7 @@ func (r *TaskRepository) CreateTask(req models.CreateTaskRequest) (*models.Task,
 	query := `INSERT INTO tasks (title, description) VALUES ($1, $2)
 			  RETURNING id, title, description, completed, created_at, updated_at`
 
-	r.log.LogQuery(op, query, req.Title, req.Description)
+	logQuery(r.log, op, query, req.Title, req.Description)
 
 	err := r.db.QueryRow(query, req.Title, req.Description).Scan(
 		&task.ID, &task.Title, &task.Description, &task.Completed, &task.CreatedAt, &task.UpdatedAt,
@@ -54,7 +54,7 @@ func (r *TaskRepository) CreateTask(req models.CreateTaskRequest) (*models.Task,
 		return nil, err
 	}
 	r.log.LogResponse(op, task)
-	r.log.LogQueryResult(op, duration, 1)
+	logQueryResult(r.log, op, duration, 1)
 	return &task, nil
 }
 
@@ -68,7 +68,7 @@ func (r *TaskRepository) GetTaskByID(id int) (*models.Task, error) {
 
 	query := `SELECT id, title, description, completed, created_at, updated_at
 			  FROM tasks WHERE id = $1`
-	r.log.LogQuery(op, query, id)
+	logQuery(r.log, op, query, id)
 
 	err := r.db.QueryRow(query, id).Scan(
 		&task.ID, &task.Title, &task.Description, &task.Completed, &task.CreatedAt, &task.UpdatedAt,
@@ -85,7 +85,7 @@ func (r *TaskRepository) GetTaskByID(id int) (*models.Task, error) {
 	}
 
 	r.log.LogResponse(op, task)
-	r.log.LogQueryResult(op, duration, 1)
+	logQueryResult(r.log, op, duration, 1)
 	return &task, nil
 }
 
@@ -98,7 +98,7 @@ func (r *TaskRepository) GetAllTasks() ([]models.Task, error) {
 
 	query := `SELECT id, title, description, completed, created_at, updated_at FROM tasks`
 
-	r.log.LogQuery(op, query)
+	logQuery(r.log, op, query)
 
 	rows, err := r.db.Query(query)
 	if err != nil {
@@ -120,7 +120,7 @@ func (r *TaskRepository) GetAllTasks() ([]models.Task, error) {
 
 	duration := time.Since(start).Milliseconds()
 	r.log.LogResponse(op, tasks)
-	r.log.LogQueryResult(op, duration, int64(len(tasks)))
+	logQueryResult(r.log, op, duration, int64(len(tasks)))
 	return tasks, nil
 }
 
@@ -135,7 +135,7 @@ func (r *TaskRepository) CompleteTask(id int) (*models.Task, error) {
 			  SET completed = true, updated_at = CURRENT_TIMESTAMP
 			  WHERE id = $1
 			  RETURNING id, title, description, completed, created_at, updated_at`
-	r.log.LogQuery(op, query, id)
+	logQuery(r.log, op, query, id)
 
 	err := r.db.QueryRow(query, id).Scan(
 		&task.ID, &task.Title, &task.Description, &task.Completed, &task.CreatedAt, &task.UpdatedAt,
@@ -151,7 +151,7 @@ func (r *TaskRepository) CompleteTask(id int) (*models.Task, error) {
 	}
 
 	r.log.LogResponse(op, task)
-	r.log.LogQueryResult(op, duration, 1)
+	logQueryResult(r.log, op, duration, 1)
 	return &task, nil
 }
 
@@ -163,7 +163,7 @@ func (r *TaskRepository) DeleteTask(id int) error {
 
 	query := `DELETE FROM tasks WHERE id = $1`
 
-	r.log.LogQuery(op, query, id)
+	logQuery(r.log, op, query, id)
 	res, err := r.db.Exec(query, id)
 	duration := time.Since(start).Milliseconds()
 
@@ -182,6 +182,6 @@ func (r *TaskRepository) DeleteTask(id int) error {
 	}
 
 	r.log.LogResponse(op, map[string]interface{}{"deleted": true, "id": id})
-	r.log.LogQueryResult(op, duration, rowsAffected)
+	logQueryResult(r.log, op, duration, rowsAffected)
 	return nil
 }
