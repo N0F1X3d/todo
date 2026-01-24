@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	proto "github.com/N0F1X3d/todo/db-service/pkg/proto"
+	proto "github.com/N0F1X3d/todo/pkg/proto"
 	mock "github.com/stretchr/testify/mock"
 )
 

@@ -6,8 +6,8 @@ import (
 
 	"github.com/N0F1X3d/todo/db-service/internal/models"
 	"github.com/N0F1X3d/todo/db-service/internal/service"
-	"github.com/N0F1X3d/todo/db-service/pkg/proto"
 	"github.com/N0F1X3d/todo/pkg/logger"
+	"github.com/N0F1X3d/todo/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
