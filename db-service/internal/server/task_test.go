@@ -9,8 +9,8 @@ import (
 	"github.com/N0F1X3d/todo/db-service/internal/models"
 	"github.com/N0F1X3d/todo/db-service/internal/server"
 	"github.com/N0F1X3d/todo/db-service/mocks"
-	"github.com/N0F1X3d/todo/db-service/pkg/logger"
-	"github.com/N0F1X3d/todo/db-service/pkg/proto"
+	"github.com/N0F1X3d/todo/pkg/logger"
+	"github.com/N0F1X3d/todo/pkg/proto"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"google.golang.org/grpc/codes"
@@ -19,7 +19,7 @@ import (
 
 func TestTaskServer_CreateTask_Success(t *testing.T) {
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	createdTime := time.Now()
 	mockService.On("CreateTask", models.CreateTaskRequest{
@@ -53,7 +53,7 @@ func TestTaskServer_CreateTask_Success(t *testing.T) {
 
 func TestTaskServer_CreateTask_EmptyTitle(t *testing.T) {
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("CreateTask", models.CreateTaskRequest{
 		Title:       "",
@@ -80,7 +80,7 @@ func TestTaskServer_CreateTask_EmptyTitle(t *testing.T) {
 
 func TestTaskServer_CreateTask_TitleTooLong(t *testing.T) {
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("CreateTask", models.CreateTaskRequest{
 		Title:       string(make([]byte, 256)),
@@ -107,7 +107,7 @@ func TestTaskServer_CreateTask_TitleTooLong(t *testing.T) {
 
 func TestTaskServer_CreateTask_InternalError(t *testing.T) {
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	mockService.On("CreateTask", mock.Anything).Return(nil, errors.New("error"))
 
 	server := server.NewTaskServer(mockService, testLogger)
@@ -131,7 +131,7 @@ func TestTaskServer_CreateTask_InternalError(t *testing.T) {
 func TestTaskServer_GetTaskByID_Success(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	createdTime := time.Now()
 	updatedTime := createdTime.Add(time.Hour)
@@ -167,7 +167,7 @@ func TestTaskServer_GetTaskByID_Success(t *testing.T) {
 func TestTaskServer_GetTaskByID_InvalidID(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("GetTaskByID", 0).Return(nil, errors.New("invalid task id"))
 
@@ -193,7 +193,7 @@ func TestTaskServer_GetTaskByID_InvalidID(t *testing.T) {
 func TestTaskServer_GetTaskByID_NotFound(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("GetTaskByID", 999).Return(nil, errors.New("task not found"))
 
@@ -219,7 +219,7 @@ func TestTaskServer_GetTaskByID_NotFound(t *testing.T) {
 func TestTaskServer_GetTaskByID_InternalError(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("GetTaskByID", mock.Anything).Return(nil, errors.New("database error"))
 
@@ -244,7 +244,7 @@ func TestTaskServer_GetTaskByID_InternalError(t *testing.T) {
 func TestTaskServer_GetAllTasks_Success(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	createdTime := time.Now()
 	tasks := []models.Task{
@@ -289,7 +289,7 @@ func TestTaskServer_GetAllTasks_Success(t *testing.T) {
 func TestTaskServer_GetAllTasks_Empty(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("GetAllTasks").Return([]models.Task{}, nil)
 
@@ -309,7 +309,7 @@ func TestTaskServer_GetAllTasks_Empty(t *testing.T) {
 func TestTaskServer_GetAllTasks_InternalError(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("GetAllTasks").Return(nil, errors.New("database error"))
 
@@ -333,7 +333,7 @@ func TestTaskServer_GetAllTasks_InternalError(t *testing.T) {
 func TestTaskServer_CompleteTask_Success(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	createdTime := time.Now()
 	completedTime := createdTime.Add(time.Hour)
@@ -367,7 +367,7 @@ func TestTaskServer_CompleteTask_Success(t *testing.T) {
 func TestTaskServer_CompleteTask_InvalidID(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("CompleteTask", 0).Return(nil, errors.New("invalid task id"))
 
@@ -393,7 +393,7 @@ func TestTaskServer_CompleteTask_InvalidID(t *testing.T) {
 func TestTaskServer_CompleteTask_NotFound(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("CompleteTask", 999).Return(nil, errors.New("task not found"))
 
@@ -419,7 +419,7 @@ func TestTaskServer_CompleteTask_NotFound(t *testing.T) {
 func TestTaskServer_CompleteTask_AlreadyCompleted(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("CompleteTask", 1).Return(nil, errors.New("task already completed"))
 
@@ -445,7 +445,7 @@ func TestTaskServer_CompleteTask_AlreadyCompleted(t *testing.T) {
 func TestTaskServer_CompleteTask_InternalError(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("CompleteTask", mock.Anything).Return(nil, errors.New("database error"))
 
@@ -471,7 +471,7 @@ func TestTaskServer_CompleteTask_InternalError(t *testing.T) {
 func TestTaskServer_DeleteTask_Success(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("DeleteTask", 1).Return(nil)
 
@@ -493,7 +493,7 @@ func TestTaskServer_DeleteTask_Success(t *testing.T) {
 func TestTaskServer_DeleteTask_InvalidID(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("DeleteTask", 0).Return(errors.New("invalid id"))
 
@@ -519,7 +519,7 @@ func TestTaskServer_DeleteTask_InvalidID(t *testing.T) {
 func TestTaskServer_DeleteTask_NotFound(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("DeleteTask", 999).Return(errors.New("failed to find task"))
 
@@ -545,7 +545,7 @@ func TestTaskServer_DeleteTask_NotFound(t *testing.T) {
 func TestTaskServer_DeleteTask_InternalError(t *testing.T) {
 	// Arrange
 	mockService := mocks.NewTaskServiceInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 
 	mockService.On("DeleteTask", mock.Anything).Return(errors.New("database error"))
 

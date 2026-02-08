@@ -9,7 +9,7 @@ import (
 	"github.com/N0F1X3d/todo/db-service/internal/models"
 	"github.com/N0F1X3d/todo/db-service/internal/service"
 	"github.com/N0F1X3d/todo/db-service/mocks"
-	"github.com/N0F1X3d/todo/db-service/pkg/logger"
+	"github.com/N0F1X3d/todo/pkg/logger"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 )
@@ -25,7 +25,7 @@ func TestTaskService_CreateTask_Success(t *testing.T) {
 		UpdatedAt:   time.Now(),
 	}, nil)
 
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	req := models.CreateTaskRequest{
@@ -43,7 +43,7 @@ func TestTaskService_CreateTask_Success(t *testing.T) {
 
 func TestTaskService_CreateTask_EmptyTitle(t *testing.T) {
 	mockRepo := mocks.NewTaskRepositoryInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	req := models.CreateTaskRequest{Title: " "}
@@ -56,7 +56,7 @@ func TestTaskService_CreateTask_EmptyTitle(t *testing.T) {
 
 func TestTaskService_CreateTask_TitleTooLong(t *testing.T) {
 	mockRepo := mocks.NewTaskRepositoryInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	longTitle := string(make([]byte, 256))
@@ -77,7 +77,7 @@ func TestTaskService_GetTaskByID_Success(t *testing.T) {
 		Completed:   false,
 	}, nil)
 
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	task, err := taskService.GetTaskByID(1)
@@ -90,7 +90,7 @@ func TestTaskService_GetTaskByID_Success(t *testing.T) {
 
 func TestTaskService_GetTaskByID_InvalidTaskID(t *testing.T) {
 	mockRepo := mocks.NewTaskRepositoryInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	task, err := taskService.GetTaskByID(0)
@@ -103,7 +103,7 @@ func TestTaskService_GetTaskByID_InvalidTaskID(t *testing.T) {
 func TestTaskService_GetTaskByID_TaskNotFound(t *testing.T) {
 	mockRepo := mocks.NewTaskRepositoryInterface(t)
 	mockRepo.On("GetTaskByID", 999).Return(nil, sql.ErrNoRows)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	task, err := taskService.GetTaskByID(999)
@@ -120,7 +120,7 @@ func TestTaskService_GetAllTasks_Success(t *testing.T) {
 		{ID: 2, Title: "test task 2", Completed: true, CreatedAt: time.Now(), UpdatedAt: time.Now()},
 	}
 	mockRepo.On("GetAllTasks").Return(tasks, nil)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	tasks, err := taskService.GetAllTasks()
@@ -138,7 +138,7 @@ func TestTaskService_GetAllTasks_DatabaseError(t *testing.T) {
 	mockRepo := mocks.NewTaskRepositoryInterface(t)
 	mockRepo.On("GetAllTasks").Return(nil, errors.New("any error"))
 
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	tasks, err := taskService.GetAllTasks()
@@ -154,7 +154,7 @@ func TestTaskService_GetAllTasks_EmptyList(t *testing.T) {
 
 	mockRepo.On("GetAllTasks").Return([]models.Task{}, nil)
 
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	// Act
@@ -181,7 +181,7 @@ func TestTaskService_CompleteTask_Success(t *testing.T) {
 		UpdatedAt: completedTime,
 	}, nil)
 
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	task, err := taskService.CompleteTask(1)
@@ -195,7 +195,7 @@ func TestTaskService_CompleteTask_Success(t *testing.T) {
 
 func TestTaskService_CompleteTask_InvalidID(t *testing.T) {
 	mockRepo := mocks.NewTaskRepositoryInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	_, err := taskService.CompleteTask(0)
@@ -207,7 +207,7 @@ func TestTaskService_CompleteTask_InvalidID(t *testing.T) {
 func TestTaskService_CompleteTask_TaskNotFound(t *testing.T) {
 	mockRepo := mocks.NewTaskRepositoryInterface(t)
 	mockRepo.On("GetTaskByID", 99).Return(nil, sql.ErrNoRows)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	_, err := taskService.GetTaskByID(99)
@@ -222,7 +222,7 @@ func TestTaskService_CompleteTask_AlreadyCompleted(t *testing.T) {
 		Title:     "test",
 		Completed: true,
 	}, nil)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	_, err := taskService.CompleteTask(1)
@@ -245,7 +245,7 @@ func TestTaskService_CompleteTask_CompleteError(t *testing.T) {
 	mockRepo.On("CompleteTask", 1).
 		Return(nil, errors.New("update failed"))
 
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	// Act
@@ -264,7 +264,7 @@ func TestTaskService_DeleteTask_Success(t *testing.T) {
 		Title: "test",
 	}, nil)
 	mockRepo.On("DeleteTask", 1).Return(nil)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	err := taskService.DeleteTask(1)
@@ -274,7 +274,7 @@ func TestTaskService_DeleteTask_Success(t *testing.T) {
 
 func TestTaskService_DeleteTask_InvalidID(t *testing.T) {
 	mockRepo := mocks.NewTaskRepositoryInterface(t)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	err := taskService.DeleteTask(0)
@@ -286,7 +286,7 @@ func TestTaskService_DeleteTask_InvalidID(t *testing.T) {
 func TestTaskService_DeleteTask_TaskNotFound(t *testing.T) {
 	mockRepo := mocks.NewTaskRepositoryInterface(t)
 	mockRepo.On("GetTaskByID", 99).Return(nil, sql.ErrNoRows)
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	err := taskService.DeleteTask(99)
@@ -302,7 +302,7 @@ func TestTaskService_DeleteTask_DeleteError(t *testing.T) {
 		Title: "test",
 	}, nil)
 	mockRepo.On("DeleteTask", 1).Return(errors.New("failed to delete task"))
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	err := taskService.DeleteTask(1)
@@ -314,7 +314,7 @@ func TestTaskService_DeleteTask_DeleteError(t *testing.T) {
 func TestTaskService_DeleteTask_GetTaskError(t *testing.T) {
 	mockRepo := mocks.NewTaskRepositoryInterface(t)
 	mockRepo.On("GetTaskByID", 1).Return(nil, errors.New("connection error"))
-	testLogger := logger.New("test-logs")
+	testLogger := logger.New("db-service", "test-logs")
 	taskService := service.NewTaskService(mockRepo, testLogger)
 
 	err := taskService.DeleteTask(1)

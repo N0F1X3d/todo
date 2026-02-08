@@ -4,11 +4,10 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
-	"time"
 
 	"github.com/N0F1X3d/todo/db-service/internal/models"
 	"github.com/N0F1X3d/todo/db-service/internal/repository"
-	"github.com/N0F1X3d/todo/db-service/pkg/logger"
+	"github.com/N0F1X3d/todo/pkg/logger"
 )
 
 //go:generate mockery --name=TaskServiceInterface --filename=task_service_interface.go --output=../../mocks --case=underscore
@@ -39,7 +38,6 @@ func (t *TaskService) CreateTask(req models.CreateTaskRequest) (*models.Task, er
 	const op = "CreateTask"
 
 	t.log.LogRequest(op, req)
-	start := time.Now()
 
 	if strings.TrimSpace(req.Title) == "" {
 		err := errors.New("title can not be empty")
@@ -56,10 +54,8 @@ func (t *TaskService) CreateTask(req models.CreateTaskRequest) (*models.Task, er
 		t.log.ErrorWithContext("failed to create task in repository", err, op, "request", req)
 		return nil, err
 	}
-	duration := time.Since(start).Microseconds()
 
 	t.log.LogResponse(op, task)
-	t.log.LogQueryResult(op, duration, 1)
 	return task, nil
 }
 
@@ -69,7 +65,6 @@ func (t *TaskService) GetTaskByID(id int) (*models.Task, error) {
 
 	t.log.LogRequest(op, map[string]interface{}{"id": id})
 
-	start := time.Now()
 	if id <= 0 {
 		err := errors.New("invalid task id")
 		t.log.ErrorWithContext("validation failed", err, op, "task_id", id)
@@ -85,10 +80,7 @@ func (t *TaskService) GetTaskByID(id int) (*models.Task, error) {
 		return nil, errors.New("internal server error")
 	}
 
-	duration := time.Since(start).Milliseconds()
-
 	t.log.LogResponse(op, task)
-	t.log.LogQueryResult(op, duration, 1)
 
 	return task, nil
 }
@@ -98,18 +90,13 @@ func (t *TaskService) GetAllTasks() ([]models.Task, error) {
 	const op = "GetAllTasks"
 	t.log.LogRequest(op, nil)
 
-	start := time.Now()
-
 	tasks, err := t.repo.GetAllTasks()
 	if err != nil {
 		t.log.ErrorWithContext("database error", err, op)
 		return nil, errors.New("internal server error")
 	}
 
-	duration := time.Since(start).Milliseconds()
-
 	t.log.LogResponse(op, tasks)
-	t.log.LogQueryResult(op, duration, int64(len(tasks)))
 
 	return tasks, nil
 }
@@ -119,8 +106,6 @@ func (t *TaskService) CompleteTask(id int) (*models.Task, error) {
 	const op = "CompleteTask"
 
 	t.log.LogRequest(op, map[string]interface{}{"id": id})
-
-	start := time.Now()
 
 	if id <= 0 {
 		err := errors.New("invalid task id")
@@ -146,10 +131,8 @@ func (t *TaskService) CompleteTask(id int) (*models.Task, error) {
 		return nil, err
 	}
 
-	duration := time.Since(start).Milliseconds()
-
 	t.log.LogResponse(op, taskCompleted)
-	t.log.LogQueryResult(op, duration, 1)
+
 	return taskCompleted, nil
 }
 
@@ -159,7 +142,6 @@ func (t *TaskService) DeleteTask(id int) error {
 
 	t.log.LogRequest(op, map[string]interface{}{"id": id})
 
-	start := time.Now()
 	if id <= 0 {
 		err := errors.New("invalid id")
 		t.log.ErrorWithContext("validation error", err, op, "task_id", id)
@@ -178,9 +160,7 @@ func (t *TaskService) DeleteTask(id int) error {
 		return err
 	}
 
-	duration := time.Since(start).Milliseconds()
-
 	t.log.LogResponse(op, map[string]interface{}{"deleted": true, "task_id": id, "task_title": task.Title})
-	t.log.LogQueryResult(op, duration, 1)
+
 	return nil
 }

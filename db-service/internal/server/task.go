@@ -6,8 +6,8 @@ import (
 
 	"github.com/N0F1X3d/todo/db-service/internal/models"
 	"github.com/N0F1X3d/todo/db-service/internal/service"
-	"github.com/N0F1X3d/todo/db-service/pkg/logger"
-	"github.com/N0F1X3d/todo/db-service/pkg/proto"
+	"github.com/N0F1X3d/todo/pkg/logger"
+	"github.com/N0F1X3d/todo/pkg/proto"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -48,7 +48,6 @@ func (s *TaskServer) CreateTask(ctx context.Context, req *proto.CreateTaskReques
 		"title":       req.GetTitle(),
 		"description": req.GetDescription(),
 	})
-	start := time.Now()
 
 	createReq := models.CreateTaskRequest{
 		Title:       req.GetTitle(),
@@ -79,10 +78,7 @@ func (s *TaskServer) CreateTask(ctx context.Context, req *proto.CreateTaskReques
 		UpdatedAt:   task.UpdatedAt.Format(time.RFC3339),
 	}
 
-	duration := time.Since(start).Microseconds()
-
 	s.log.LogResponse(op, response)
-	s.log.LogQueryResult(op, duration, 1)
 	return response, nil
 }
 
@@ -91,8 +87,6 @@ func (s *TaskServer) GetTaskByID(ctx context.Context, req *proto.GetTaskByIDRequ
 	const op = "GetTaskByID"
 
 	s.log.LogRequest(op, map[string]interface{}{"id": req.GetId()})
-
-	start := time.Now()
 
 	task, err := s.service.GetTaskByID(int(req.GetId()))
 	if err != nil {
@@ -116,10 +110,7 @@ func (s *TaskServer) GetTaskByID(ctx context.Context, req *proto.GetTaskByIDRequ
 		UpdatedAt:   task.UpdatedAt.Format(time.RFC3339),
 	}
 
-	duration := time.Since(start).Milliseconds()
-
 	s.log.LogResponse(op, response)
-	s.log.LogQueryResult(op, duration, 1)
 
 	return response, nil
 }
@@ -129,8 +120,6 @@ func (s *TaskServer) GetAllTasks(ctx context.Context, req *proto.GetAllTasksRequ
 	const op = "GetAllTasks"
 
 	s.log.LogRequest(op, nil)
-
-	start := time.Now()
 
 	tasks, err := s.service.GetAllTasks()
 	if err != nil {
@@ -153,10 +142,7 @@ func (s *TaskServer) GetAllTasks(ctx context.Context, req *proto.GetAllTasksRequ
 		})
 	}
 
-	duration := time.Since(start).Milliseconds()
-
 	s.log.LogResponse(op, map[string]interface{}{"tasks_count": len(tasks)})
-	s.log.LogQueryResult(op, duration, int64(len(tasks)))
 
 	return response, nil
 }
@@ -166,8 +152,6 @@ func (s *TaskServer) CompleteTask(ctx context.Context, req *proto.CompleteTaskRe
 	const op = "CompleteTask"
 
 	s.log.LogRequest(op, map[string]interface{}{"id": req.GetId()})
-
-	start := time.Now()
 
 	task, err := s.service.CompleteTask(int(req.GetId()))
 	if err != nil {
@@ -193,10 +177,7 @@ func (s *TaskServer) CompleteTask(ctx context.Context, req *proto.CompleteTaskRe
 		UpdatedAt:   task.UpdatedAt.Format(time.RFC3339),
 	}
 
-	duration := time.Since(start).Milliseconds()
-
 	s.log.LogResponse(op, response)
-	s.log.LogQueryResult(op, duration, 1)
 	return response, nil
 }
 
@@ -205,8 +186,6 @@ func (s *TaskServer) DeleteTask(ctx context.Context, req *proto.DeleteTaskReques
 	const op = "DeleteTask"
 
 	s.log.LogRequest(op, map[string]interface{}{"id": req.GetId()})
-
-	start := time.Now()
 
 	err := s.service.DeleteTask(int(req.GetId()))
 	if err != nil {
@@ -221,9 +200,6 @@ func (s *TaskServer) DeleteTask(ctx context.Context, req *proto.DeleteTaskReques
 		}
 	}
 
-	duration := time.Since(start).Milliseconds()
-
 	s.log.LogResponse(op, map[string]interface{}{"deleted": true, "task_id": req.GetId()})
-	s.log.LogQueryResult(op, duration, 1)
 	return &proto.DeleteTaskResponse{Success: true}, nil
 }

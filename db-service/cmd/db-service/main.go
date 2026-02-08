@@ -16,9 +16,9 @@ import (
 	"github.com/N0F1X3d/todo/db-service/internal/repository"
 	"github.com/N0F1X3d/todo/db-service/internal/server"
 	"github.com/N0F1X3d/todo/db-service/internal/service"
-	"github.com/N0F1X3d/todo/db-service/pkg/logger"
+	"github.com/N0F1X3d/todo/pkg/logger"
 
-	pb "github.com/N0F1X3d/todo/db-service/pkg/proto"
+	pb "github.com/N0F1X3d/todo/pkg/proto"
 )
 
 func main() {
@@ -34,7 +34,7 @@ func main() {
 	// ========================
 	// Logger
 	// ========================
-	logg := logger.New("main-logs").WithComponent("main")
+	logg := logger.New("db-service", "main-logs").WithComponent("main")
 
 	// ========================
 	// Database
