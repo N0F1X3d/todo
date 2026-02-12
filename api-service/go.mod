@@ -4,13 +4,13 @@ go 1.25.3
 
 require (
 	github.com/N0F1X3d/todo/pkg v0.0.0
+	github.com/gorilla/mux v1.8.1
+	github.com/ilyakaznacheev/cleanenv v1.5.0
 	google.golang.org/grpc v1.78.0
 )
 
 require (
 	github.com/BurntSushi/toml v1.2.1 // indirect
-	github.com/gorilla/mux v1.8.1 // indirect
-	github.com/ilyakaznacheev/cleanenv v1.5.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	golang.org/x/net v0.47.0 // indirect
 	golang.org/x/sys v0.38.0 // indirect
