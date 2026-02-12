@@ -3,13 +3,19 @@ FROM golang:1.25.3-alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache git
+# Копируем pkg (общий код)
+COPY pkg/ ./pkg/
 
-COPY go.mod go.sum ./
+# Копируем db-service
+COPY db-service/ ./db-service/
+
+# Переходим в директорию db-service
+WORKDIR /app/db-service
+
+# Скачиваем зависимости
 RUN go mod download
 
-COPY . .
-
+# Собираем приложение
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
     go build -o db-service ./cmd/db-service
 
@@ -18,7 +24,8 @@ FROM alpine:3.19
 
 WORKDIR /app
 
-COPY --from=builder /app/db-service .
+# Копируем бинарник из builder
+COPY --from=builder /app/db-service/db-service .
 
 EXPOSE 50051
 

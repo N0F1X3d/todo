@@ -21,7 +21,9 @@ services:
 
   db-service:
     container_name: todo-db-service
-    build: ./db-service
+    build:
+      context: .
+      dockerfile: db-service/Dockerfile
     depends_on:
       postgres:
         condition: service_healthy
@@ -30,6 +32,23 @@ services:
       POSTGRES_DSN: postgres://postgres:postgres@postgres:5432/tasks?sslmode=disable
     ports:
       - "50051:50051"
+    restart: unless-stopped
+
+  api-service:
+    container_name: todo-api-service
+    build:
+      context: .
+      dockerfile: api-service/Dockerfile
+    depends_on:
+      - db-service
+    environment:
+      SERVICE_NAME: todo-api-service
+      HTTP_HOST: 0.0.0.0
+      HTTP_PORT: 8080
+      GRPC_HOST: db-service
+      GRPC_PORT: 50051
+    ports:
+      - "8080:8080"
     restart: unless-stopped
 
 volumes:

@@ -3,8 +3,10 @@ version: "3"
 dotenv: [".env"]
 
 vars:
-  SERVICE_NAME: db-service
-  SERVICE_DIR: db-service
+  DB_SERVICE_NAME: db-service
+  DB_SERVICE_DIR: db-service
+  API_SERVICE_NAME: api-service
+  API_SERVICE_DIR: api-service
   DOCKER_COMPOSE: docker compose
 
 tasks:
@@ -20,7 +22,7 @@ tasks:
 
   proto:
     desc: "Generate gRPC code from proto files"
-    dir: "{{.SERVICE_DIR}}"
+    dir: "{{.DB_SERVICE_DIR}}"
     cmds:
       - |
         protoc \
@@ -51,11 +53,17 @@ tasks:
   #  LOCAL RUN
   # ------------------------
 
-  run:
+  run:db:
     desc: "Run db-service locally"
-    dir: "{{.SERVICE_DIR}}"
+    dir: "{{.DB_SERVICE_DIR}}"
     cmds:
       - go run ./cmd/db-service
+
+  run:api:
+    desc: "Run api-service locally"
+    dir: "{{.API_SERVICE_DIR}}"
+    cmds:
+      - go run ./cmd/api
 
   # ------------------------
   #  DOCKER
@@ -64,12 +72,22 @@ tasks:
   docker:build:
     desc: "Build db-service docker image"
     cmds:
-      - "{{.DOCKER_COMPOSE}} build {{.SERVICE_NAME}}"
+      - "{{.DOCKER_COMPOSE}} build {{.DB_SERVICE_NAME}}"
+
+  docker:build:api:
+    desc: "Build api-service docker image"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} build {{.API_SERVICE_NAME}}"
 
   docker:up:
     desc: "Run all services in docker"
     cmds:
       - "{{.DOCKER_COMPOSE}} up -d"
+
+  docker:up:api:
+    desc: "Run api-service in docker (requires db-service running)"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} up -d {{.API_SERVICE_NAME}}"
 
   docker:down:
     desc: "Stop all docker services"
@@ -79,7 +97,12 @@ tasks:
   docker:logs:
     desc: "Logs from db-service"
     cmds:
-      - "{{.DOCKER_COMPOSE}} logs -f {{.SERVICE_NAME}}"
+      - "{{.DOCKER_COMPOSE}} logs -f {{.DB_SERVICE_NAME}}"
+
+  docker:logs:api:
+    desc: "Logs from api-service"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} logs -f {{.API_SERVICE_NAME}}"
 
   # ------------------------
   #  TESTS
@@ -87,7 +110,7 @@ tasks:
 
   test:
     desc: "Run all tests"
-    dir: "{{.SERVICE_DIR}}"
+    dir: "{{.DB_SERVICE_DIR}}"
     cmds:
       - go test ./... -v
 
@@ -98,4 +121,4 @@ tasks:
   clean:
     desc: "Clean build artifacts"
     cmds:
-      - rm -rf {{.SERVICE_DIR}}/bin
+      - rm -rf {{.DB_SERVICE_DIR}}/bin

@@ -11,7 +11,7 @@ type Logger struct {
 	serviceName string
 }
 
-// New создает логгер для db-service
+// New создает логгер
 func New(serviceName string, logDir string) *Logger {
 
 	if err := os.MkdirAll(logDir, 0755); err != nil {
