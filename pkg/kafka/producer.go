@@ -3,6 +3,7 @@ package kafka
 import (
 	"context"
 	"encoding/json"
+	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -11,24 +12,27 @@ type Producer struct {
 	writer *kafka.Writer
 }
 
-func NewProducer(broker, topic string) *Producer {
+func NewProducer(brokers []string, topic string) *Producer {
 	return &Producer{
 		writer: &kafka.Writer{
-			Addr:         kafka.TCP(broker),
+			Addr:         kafka.TCP(brokers...),
 			Topic:        topic,
 			Balancer:     &kafka.LeastBytes{},
 			RequiredAcks: kafka.RequireAll,
+			BatchTimeout: 10 * time.Millisecond,
 		},
 	}
 }
 
-func (p *Producer) SendEvent(ctx context.Context, event TaskEvent) error {
-	data, err := json.Marshal(event)
+func (p *Producer) Send(ctx context.Context, key string, event TaskEvent) error {
+	value, err := json.Marshal(event)
 	if err != nil {
 		return err
 	}
 	return p.writer.WriteMessages(ctx, kafka.Message{
-		Value: data,
+		Key:   []byte(key),
+		Value: value,
+		Time:  time.Now(),
 	})
 }
 

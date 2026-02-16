@@ -59,10 +59,10 @@ func (h *TaskHandler) CreateTask(w http.ResponseWriter, r *http.Request) {
 	resp := dto.TaskResponseFromProto(task)
 
 	event := kafka.TaskEvent{
-		Action:        op,
+		Action:        "create-task",
 		DBRequestTime: dbRequestTime,
 	}
-	if err := h.producer.SendEvent(ctx, event); err != nil {
+	if err := h.producer.Send(ctx, "create", event); err != nil {
 		h.log.ErrorWithContext("failed to send event", err, op)
 	}
 
@@ -92,10 +92,10 @@ func (h *TaskHandler) ListTasks(w http.ResponseWriter, r *http.Request) {
 	resp := dto.TaskListResponseFromProto(tasks)
 
 	event := kafka.TaskEvent{
-		Action:        op,
+		Action:        "list-tasks",
 		DBRequestTime: dbRequestTime,
 	}
-	if err := h.producer.SendEvent(ctx, event); err != nil {
+	if err := h.producer.Send(ctx, "list", event); err != nil {
 		h.log.ErrorWithContext("failed to send event", err, op)
 	}
 
@@ -133,10 +133,10 @@ func (h *TaskHandler) DeleteTask(w http.ResponseWriter, r *http.Request) {
 	}
 
 	event := kafka.TaskEvent{
-		Action:        op,
+		Action:        "delete-task",
 		DBRequestTime: dbRequestTime,
 	}
-	if err := h.producer.SendEvent(ctx, event); err != nil {
+	if err := h.producer.Send(ctx, "delete", event); err != nil {
 		h.log.ErrorWithContext("failed to send event", err, op)
 	}
 
@@ -178,10 +178,10 @@ func (h *TaskHandler) CompleteTask(w http.ResponseWriter, r *http.Request) {
 	resp := dto.TaskResponseFromProto(task)
 
 	event := kafka.TaskEvent{
-		Action:        op,
+		Action:        "complete-task",
 		DBRequestTime: dbRequestTime,
 	}
-	if err := h.producer.SendEvent(ctx, event); err != nil {
+	if err := h.producer.Send(ctx, "complete", event); err != nil {
 		h.log.ErrorWithContext("failed to send event", err, op)
 	}
 

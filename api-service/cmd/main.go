@@ -15,7 +15,7 @@ import (
 	"github.com/N0F1X3d/todo/api-service/internal/config"
 	"github.com/N0F1X3d/todo/api-service/internal/http-server/handlers"
 	"github.com/N0F1X3d/todo/api-service/internal/http-server/middleware"
-	"github.com/N0F1X3d/todo/pkg/kafka"
+	pkgKafka "github.com/N0F1X3d/todo/pkg/kafka"
 	"github.com/N0F1X3d/todo/pkg/logger"
 )
 
@@ -48,7 +48,7 @@ func main() {
 	defer grpcClient.Close()
 
 	// ===== Kafka producer =====
-	producer := kafka.NewProducer("kafka:9092", "task-events")
+	producer := pkgKafka.NewProducer([]string{"kafka:9092"}, "task-events")
 	defer producer.Close()
 
 	// ===== Handlers =====

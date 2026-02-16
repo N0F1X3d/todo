@@ -74,6 +74,15 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+  
+  event-logger-service:
+    build:
+      context: .
+      dockerfile: event-logger-service/Dockerfile
+    depends_on:
+      - kafka
+    volumes:
+      - ./logs:/logs
 
 
 volumes:
