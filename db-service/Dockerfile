@@ -27,6 +27,9 @@ WORKDIR /app
 # Копируем бинарник из builder
 COPY --from=builder /app/db-service/db-service .
 
+# Копируем миграции
+COPY --from=builder /app/db-service/migrations ./migrations
+
 EXPOSE 50051
 
 CMD ["./db-service"]

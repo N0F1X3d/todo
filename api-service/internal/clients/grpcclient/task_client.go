@@ -44,7 +44,7 @@ func (c *TaskClient) Close() error {
 }
 
 // CreateTask создает новую задачу
-func (c *TaskClient) CreateTask(title, description string) (*pb.TaskResponse, error) {
+func (c *TaskClient) CreateTask(ctx context.Context, title, description string) (*pb.TaskResponse, error) {
 	const op = "CreateTask"
 
 	log := c.log.WithFunction(op)
@@ -54,7 +54,7 @@ func (c *TaskClient) CreateTask(title, description string) (*pb.TaskResponse, er
 		"description": description,
 	})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	resp, err := c.client.CreateTask(ctx, &pb.CreateTaskRequest{
@@ -71,14 +71,14 @@ func (c *TaskClient) CreateTask(title, description string) (*pb.TaskResponse, er
 }
 
 // GetAllTasks получает все задачи
-func (c *TaskClient) GetAllTasks() ([]*pb.TaskResponse, error) {
+func (c *TaskClient) GetAllTasks(ctx context.Context) ([]*pb.TaskResponse, error) {
 	const op = "GetAllTasks"
 
 	log := c.log.WithFunction(op)
 
 	log.LogRequest(op, nil)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	resp, err := c.client.GetAllTasks(ctx, &pb.GetAllTasksRequest{})
@@ -92,14 +92,14 @@ func (c *TaskClient) GetAllTasks() ([]*pb.TaskResponse, error) {
 }
 
 // DeleteTask удаляет задачу по ID
-func (c *TaskClient) DeleteTask(id int32) error {
+func (c *TaskClient) DeleteTask(ctx context.Context, id int32) error {
 	const op = "DeleteTask"
 
 	log := c.log.WithFunction(op)
 
 	log.LogRequest(op, map[string]interface{}{"id": id})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	resp, err := c.client.DeleteTask(ctx, &pb.DeleteTaskRequest{
@@ -119,14 +119,14 @@ func (c *TaskClient) DeleteTask(id int32) error {
 }
 
 // CompleteTask отмечает задачу выполненной
-func (c *TaskClient) CompleteTask(id int32) (*pb.TaskResponse, error) {
+func (c *TaskClient) CompleteTask(ctx context.Context, id int32) (*pb.TaskResponse, error) {
 	const op = "CompleteTask"
 
 	log := c.log.WithFunction(op)
 
 	log.LogRequest(op, map[string]interface{}{"id": id})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	resp, err := c.client.CompleteTask(ctx, &pb.CompleteTaskRequest{
@@ -143,14 +143,14 @@ func (c *TaskClient) CompleteTask(id int32) (*pb.TaskResponse, error) {
 }
 
 // GetTaskByID возвращает задачу по ее ID
-func (c *TaskClient) GetTaskByID(id int32) (*pb.TaskResponse, error) {
+func (c *TaskClient) GetTaskByID(ctx context.Context, id int32) (*pb.TaskResponse, error) {
 	const op = "GetTaskByID"
 
 	log := c.log.WithFunction(op)
 
 	log.LogRequest(op, map[string]interface{}{"id": id})
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
 	resp, err := c.client.GetTaskByID(ctx, &pb.GetTaskByIDRequest{

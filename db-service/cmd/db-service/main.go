@@ -10,6 +10,9 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/golang-migrate/migrate/v4"
+	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 
@@ -52,6 +55,11 @@ func main() {
 	}
 
 	logg.Info("connected to postgres")
+
+	// ========================
+	// Migrations
+	// ========================
+	runMigrations(dbDSN)
 
 	defer func() {
 		if err := db.Close(); err != nil {
@@ -111,4 +119,20 @@ func getEnv(key, defaultVal string) string {
 		return v
 	}
 	return defaultVal
+}
+
+func runMigrations(dbURL string) {
+	m, err := migrate.New(
+		"file:///app/migrations",
+		dbURL,
+	)
+	if err != nil {
+		log.Fatalf("migration init error: %v", err)
+	}
+
+	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
+		log.Fatalf("migration up error: %v", err)
+	}
+
+	log.Println("migrations applied successfully")
 }

@@ -15,6 +15,7 @@ import (
 	"github.com/N0F1X3d/todo/api-service/internal/config"
 	"github.com/N0F1X3d/todo/api-service/internal/http-server/handlers"
 	"github.com/N0F1X3d/todo/api-service/internal/http-server/middleware"
+	pkgKafka "github.com/N0F1X3d/todo/pkg/kafka"
 	"github.com/N0F1X3d/todo/pkg/logger"
 )
 
@@ -46,8 +47,12 @@ func main() {
 	}
 	defer grpcClient.Close()
 
+	// ===== Kafka producer =====
+	producer := pkgKafka.NewProducer([]string{"kafka:9092"}, "task-events")
+	defer producer.Close()
+
 	// ===== Handlers =====
-	taskHandler := handlers.NewTaskHandler(grpcClient)
+	taskHandler := handlers.NewTaskHandler(grpcClient, producer, appLogger)
 
 	// ===== Router =====
 	router := mux.NewRouter().StrictSlash(true)
