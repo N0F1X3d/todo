@@ -207,13 +207,3 @@ grpcurl -plaintext localhost:50051 list
 * метрики/трейсинг (Prometheus/OpenTelemetry)
 * Kubernetes deployment
 * CI/CD (GitHub Actions)
-
----
-
-## 🖤 Лицензия
-
-MIT
-
-```
-::contentReference[oaicite:0]{index=0}
-```
