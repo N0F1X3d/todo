@@ -1,4 +1,3 @@
-```md
 # Todo (microservices)
 
 Небольшое TODO-приложение на Go в формате микросервисов.
@@ -8,18 +7,14 @@
 ## 🧩 Архитектура
 
 Основной поток:
-```
 
 HTTP client → api-service → gRPC → db-service → PostgreSQL
 
-```
 
 Поток событий (логирование):
-```
 
 api-service → Kafka → event-logger-service → ./logs
 
-```
 
 ---
 
@@ -56,7 +51,6 @@ api-service → Kafka → event-logger-service → ./logs
 
 ## 📁 Структура проекта
 
-```
 
 todo
 ├── db-service
@@ -84,7 +78,6 @@ todo
 ├── Taskfile.yml
 └── README.md
 
-````
 
 ---
 
@@ -145,25 +138,6 @@ docker compose logs -f api-service
 
 * **API**: `http://localhost:8080`
 * **gRPC (db-service)**: `localhost:50051`
-
----
-
-## ⚠️ ВАЖНО: volume Postgres НЕ УДАЛЯТЬ
-
-У тебя есть volume с данными PostgreSQL (например `postgres_data`). Он хранит состояние БД.
-
-✅ Безопасно остановить (volume останется):
-
-```bash
-docker compose down
-```
-
-❌ НЕЛЬЗЯ (удалит volume и данные):
-
-```bash
-docker compose down -v
-docker volume prune
-```
 
 ---
 
