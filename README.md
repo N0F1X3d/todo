@@ -1,38 +1,42 @@
-# Todo DB Service
+```md
+# Todo (microservices)
 
-DB Service — gRPC-сервис для управления задачами (Todo), реализованный на Go и предназначенный для работы в микросервисной архитектуре.
-
-Сервис отвечает за хранение и управление задачами в PostgreSQL и взаимодействует с другими сервисами по gRPC.
+Небольшое TODO-приложение на Go в формате микросервисов.
 
 ---
 
 ## 🧩 Архитектура
 
-Текущая архитектура сервиса вписывается в следующую схему:
+Основной поток:
+```
 
-HTTP → API Service → Kafka → gRPC → DB Service → PostgreSQL
+HTTP client → api-service → gRPC → db-service → PostgreSQL
 
+```
 
-На данный момент в проекте реализован **DB Service**.
+Поток событий (логирование):
+```
 
-### Слои приложения
+api-service → Kafka → event-logger-service → ./logs
 
-Сервис реализован по классической **трёхслойной архитектуре**:
+```
 
-1. **Repository layer**
-   - Прямое взаимодействие с PostgreSQL
-   - SQL-запросы без ORM
-   - Инкапсулирует доступ к данным
+---
 
-2. **Service layer**
-   - Бизнес-логика
-   - Валидация входных данных
-   - Работа с доменными моделями
+## 🧱 Сервисы
 
-3. **gRPC Server layer**
-   - Обработка gRPC-запросов
-   - Маппинг ошибок в gRPC status codes
-   - Формирование ответов клиенту
+- **db-service** — gRPC-сервис задач
+  - хранение задач в PostgreSQL
+  - Redis-кеш задач (по ID, TTL) для оптимизации запросов к БД
+  - миграции применяются автоматически при старте (golang-migrate)
+
+- **api-service** — HTTP API (ходит в db-service по gRPC)
+
+- **event-logger-service** — Kafka consumer, пишет события в `./logs`
+
+- **postgres** — база данных
+- **redis** — кеш (опционально, включается через env)
+- **kafka + zookeeper** — брокер и координатор
 
 ---
 
@@ -41,124 +45,201 @@ HTTP → API Service → Kafka → gRPC → DB Service → PostgreSQL
 - **Go**
 - **gRPC**
 - **PostgreSQL**
+- **Redis**
+- **Kafka / Zookeeper**
 - **Docker / Docker Compose**
 - **Taskfile**
 - **Protobuf**
-- **SQL migrations**
+- **SQL migrations (golang-migrate)**
 
 ---
 
 ## 📁 Структура проекта
 
+```
+
 todo
 ├── db-service
-│ ├── cmd/db-service # Точка входа
-│ ├── internal
-│ │ ├── repository # Работа с БД
-│ │ ├── service # Бизнес-логика
-│ │ └── server # gRPC server
-│ ├── proto # gRPC proto-файлы
-│ ├── migrations # SQL-миграции
-│ ├── Dockerfile
-│ └── go.mod
+│   ├── cmd/db-service          # Точка входа
+│   ├── internal
+│   │   ├── config              # cleanenv config (DB_/GRPC_/REDIS_)
+│   │   ├── repository          # Работа с БД (+ Redis cache)
+│   │   ├── service             # Бизнес-логика
+│   │   └── server              # gRPC server
+│   ├── proto                   # gRPC proto-файлы
+│   ├── migrations              # SQL-миграции
+│   ├── Dockerfile
+│   └── go.mod
+├── api-service
+│   ├── cmd/api                 # Точка входа
+│   ├── internal
+│   │   └── ...
+│   ├── Dockerfile
+│   └── go.mod
+├── event-logger-service
+│   ├── cmd/...
+│   ├── Dockerfile
+│   └── ...
 ├── docker-compose.yml
 ├── Taskfile.yml
 └── README.md
 
+````
+
 ---
 
-## ⚙️ Конфигурация
+## ⚙️ Конфигурация (env)
 
-Сервис использует переменные окружения:
+### db-service (cleanenv)
 
-POSTGRES_DSN=postgres://postgres:postgres@localhost:5432/tasks?sslmode=disable
-GRPC_ADDR=:50051
+**PostgreSQL**
+- `DB_HOST` (в Docker: `postgres`)
+- `DB_PORT` (обычно `5432`)
+- `DB_USER`
+- `DB_PASSWORD`
+- `DB_NAME`
+- `DB_SSLMODE` (обычно `disable`)
+- `DB_TIMEOUT` (например `5s`)
 
-Для удобства рекомендуется создать .env файл.
+**gRPC**
+- `GRPC_HOST` (обычно `0.0.0.0`)
+- `GRPC_PORT` (например `50051`)
 
-🚀 Быстрый старт
-🔹 Требования
+**Redis (кеш задач)**
+- `REDIS_ENABLED` (`true/false`)
+- `REDIS_HOST` (в Docker: `redis`)
+- `REDIS_PORT` (обычно `6379`)
+- `REDIS_PASSWORD` (если нужен)
+- `REDIS_DB` (обычно `0`)
+- `REDIS_TTL` (например `5m`) — TTL кеша задач
 
-Go 1.22+
+### api-service
 
-Docker
+- `HTTP_HOST` (обычно `0.0.0.0`)
+- `HTTP_PORT` (например `8080`)
+- `GRPC_HOST` (в Docker: `db-service`)
+- `GRPC_PORT` (например `50051`)
+- (если используется Kafka) параметры брокера/топика из env
 
-Docker Compose
+---
 
-protoc + плагины:
+## 🚀 Быстрый старт (Docker)
 
-protoc-gen-go
+### 🔹 Требования
+- Docker
+- Docker Compose
 
-protoc-gen-go-grpc
+### 🔹 Запуск всех сервисов
+```bash
+docker compose up -d --build
+````
 
-🔹 Запуск PostgreSQL
-task db:up
+Проверить логи:
 
-🔹 Применение миграций
-docker exec -i todo-postgres psql \
-  -U postgres \
-  -d tasks < db-service/migrations/001_init.sql
+```bash
+docker compose logs -f db-service
+docker compose logs -f api-service
+```
 
-🔹 Запуск сервиса локально
-task run
+После старта:
 
+* **API**: `http://localhost:8080`
+* **gRPC (db-service)**: `localhost:50051`
 
-gRPC-сервис будет доступен по адресу:
+---
 
-localhost:50051
+## ⚠️ ВАЖНО: volume Postgres НЕ УДАЛЯТЬ
 
-🔹 Запуск через Docker
-task docker:build
-task docker:up
+У тебя есть volume с данными PostgreSQL (например `postgres_data`). Он хранит состояние БД.
 
-🧬 Генерация gRPC-кода
+✅ Безопасно остановить (volume останется):
+
+```bash
+docker compose down
+```
+
+❌ НЕЛЬЗЯ (удалит volume и данные):
+
+```bash
+docker compose down -v
+docker volume prune
+```
+
+---
+
+## 🧬 Генерация gRPC-кода
+
+```bash
 task proto
+```
 
-🧪 Тестирование
-Unit + Integration тесты
+---
+
+## 🧪 Тестирование
+
+Тесты находятся в `db-service`.
+
+```bash
 task test
+```
 
-🔍 Ручное тестирование
+или вручную:
 
-Для тестирования gRPC-сервиса можно использовать:
+```bash
+cd db-service
+go test ./... -v
+```
 
-grpcurl
+---
 
-BloomRPC
+## 🔍 Ручное тестирование gRPC
 
-Postman (gRPC mode)
+Можно использовать:
 
-Пример запроса через grpcurl:
+* `grpcurl`
+* BloomRPC
+* Postman (gRPC mode)
 
+Пример:
+
+```bash
 grpcurl -plaintext localhost:50051 list
+```
 
-📜 Реализованные методы
+---
 
-CreateTask
+## 📜 Реализованные методы (db-service)
 
-GetTaskByID
+* `CreateTask`
+* `GetTaskByID`
+* `GetAllTasks`
+* `CompleteTask`
+* `DeleteTask`
 
-GetAllTasks
+---
 
-CompleteTask
+## 📌 Статус проекта
 
-DeleteTask
+Проект в активной разработке.
 
-📌 Статус проекта
+Реализовано:
 
-Проект находится в активной разработке.
-В планах:
+* db-service (PostgreSQL + Redis cache + миграции)
+* api-service (HTTP → gRPC)
+* Kafka/Zookeeper + event-logger-service
 
-API Service (HTTP)
+Идеи на будущее:
 
-Kafka consumer
+* метрики/трейсинг (Prometheus/OpenTelemetry)
+* Kubernetes deployment
+* CI/CD (GitHub Actions)
 
-Redis cache
+---
 
-Kubernetes deployment
-
-CI/CD (GitHub Actions)
-
-🖤 Лицензия
+## 🖤 Лицензия
 
 MIT
+
+```
+::contentReference[oaicite:0]{index=0}
+```
