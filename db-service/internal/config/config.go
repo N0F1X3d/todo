@@ -45,11 +45,12 @@ type GRPCConfig struct {
 
 // RedisConfig содержит настройки Redis (для будущего кэширования)
 type RedisConfig struct {
-	Host     string `yaml:"host" env:"HOST" env-default:"localhost"`
-	Port     int    `yaml:"port" env:"PORT" env-default:"6379"`
-	Password string `yaml:"password" env:"PASSWORD" env-default:""`
-	DB       int    `yaml:"db" env:"DB" env-default:"0"`
-	Enabled  bool   `yaml:"enabled" env:"ENABLED" env-default:"false"`
+	Host     string        `yaml:"host" env:"HOST" env-default:"localhost"`
+	Port     int           `yaml:"port" env:"PORT" env-default:"6379"`
+	Password string        `yaml:"password" env:"PASSWORD" env-default:""`
+	DB       int           `yaml:"db" env:"DB" env-default:"0"`
+	Enabled  bool          `yaml:"enabled" env:"ENABLED" env-default:"false"`
+	TTL      time.Duration `yaml:"ttl" env:"TTL" env-default:"60s"`
 }
 
 // Load загружает конфигурацию из файла и переменных окружения

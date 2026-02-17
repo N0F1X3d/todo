@@ -5,12 +5,26 @@ dotenv: [".env"]
 vars:
   DB_SERVICE_NAME: db-service
   DB_SERVICE_DIR: db-service
+
   API_SERVICE_NAME: api-service
   API_SERVICE_DIR: api-service
+
+  REDIS_SERVICE_NAME: redis
+
+  POSTGRES_SERVICE_NAME: postgres
+  POSTGRES_CONTAINER: todo-postgres
+  POSTGRES_DB: tasks
+  POSTGRES_USER: postgres
+
+  # Test DB (для go test)
+  POSTGRES_TEST_SERVICE_NAME: postgres-test
+  POSTGRES_TEST_CONTAINER: todo-postgres-test
+  POSTGRES_TEST_DB: todo_test
+  POSTGRES_TEST_USER: test_user
+
   DOCKER_COMPOSE: docker compose
 
 tasks:
-
   default:
     desc: "Показать список задач"
     cmds:
@@ -31,23 +45,54 @@ tasks:
           proto/*.proto
 
   # ------------------------
-  #  DATABASE
+  #  DATABASE (MAIN)
   # ------------------------
 
   db:up:
-    desc: "Start postgres"
+    desc: "Start main postgres"
     cmds:
-      - "{{.DOCKER_COMPOSE}} up -d postgres"
+      - "{{.DOCKER_COMPOSE}} up -d {{.POSTGRES_SERVICE_NAME}}"
 
   db:down:
-    desc: "Stop postgres"
+    desc: "Stop main postgres (НЕ удаляет volumes)"
     cmds:
-      - "{{.DOCKER_COMPOSE}} down"
+      - "{{.DOCKER_COMPOSE}} stop {{.POSTGRES_SERVICE_NAME}}"
 
   db:logs:
     desc: "Postgres logs"
     cmds:
-      - "{{.DOCKER_COMPOSE}} logs -f postgres"
+      - "{{.DOCKER_COMPOSE}} logs -f {{.POSTGRES_SERVICE_NAME}}"
+
+  db:migrate:
+    desc: "Apply SQL migrations to main DB (НЕ удаляет volumes)"
+    cmds:
+      - |
+        set -e
+        echo "Applying migrations to {{.POSTGRES_DB}} ..."
+        for f in {{.DB_SERVICE_DIR}}/migrations/*.sql; do
+          echo " -> $f"
+          docker exec -i {{.POSTGRES_CONTAINER}} psql -U {{.POSTGRES_USER}} -d {{.POSTGRES_DB}} < "$f"
+        done
+        echo "Done."
+
+  # ------------------------
+  #  REDIS (infra only)
+  # ------------------------
+
+  redis:up:
+    desc: "Start redis"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} up -d {{.REDIS_SERVICE_NAME}}"
+
+  redis:down:
+    desc: "Stop redis (НЕ удаляет volumes)"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} stop {{.REDIS_SERVICE_NAME}}"
+
+  redis:logs:
+    desc: "Redis logs"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} logs -f {{.REDIS_SERVICE_NAME}}"
 
   # ------------------------
   #  LOCAL RUN
@@ -80,17 +125,17 @@ tasks:
       - "{{.DOCKER_COMPOSE}} build {{.API_SERVICE_NAME}}"
 
   docker:up:
-    desc: "Run all services in docker"
+    desc: "Run all services in docker (НЕ удаляет volumes)"
     cmds:
-      - "{{.DOCKER_COMPOSE}} up -d"
+      - "{{.DOCKER_COMPOSE}} up -d --build"
 
-  docker:up:api:
-    desc: "Run api-service in docker (requires db-service running)"
+  docker:up:core:
+    desc: "Run core stack only: postgres + redis + db-service + api-service"
     cmds:
-      - "{{.DOCKER_COMPOSE}} up -d {{.API_SERVICE_NAME}}"
+      - "{{.DOCKER_COMPOSE}} up -d --build {{.POSTGRES_SERVICE_NAME}} {{.REDIS_SERVICE_NAME}} {{.DB_SERVICE_NAME}} {{.API_SERVICE_NAME}}"
 
   docker:down:
-    desc: "Stop all docker services"
+    desc: "Stop all docker services (НЕ удаляет volumes!)"
     cmds:
       - "{{.DOCKER_COMPOSE}} down"
 
@@ -108,8 +153,42 @@ tasks:
   #  TESTS
   # ------------------------
 
+  test:db:up:
+    desc: "Start postgres for tests on port 5433 (profile test)"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} --profile test up -d {{.POSTGRES_TEST_SERVICE_NAME}}"
+
+  test:db:down:
+    desc: "Stop postgres for tests (НЕ удаляет volumes)"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} --profile test stop {{.POSTGRES_TEST_SERVICE_NAME}}"
+
+  test:db:logs:
+    desc: "Test postgres logs"
+    cmds:
+      - "{{.DOCKER_COMPOSE}} --profile test logs -f {{.POSTGRES_TEST_SERVICE_NAME}}"
+
+  test:db:migrate:
+    desc: "Apply migrations to test DB"
+    cmds:
+      - |
+        set -e
+        echo "Applying migrations to {{.POSTGRES_TEST_DB}} ..."
+        for f in {{.DB_SERVICE_DIR}}/migrations/*.sql; do
+          echo " -> $f"
+          docker exec -i {{.POSTGRES_TEST_CONTAINER}} psql -U {{.POSTGRES_TEST_USER}} -d {{.POSTGRES_TEST_DB}} < "$f"
+        done
+        echo "Done."
+
   test:
-    desc: "Run all tests"
+    desc: "Run all db-service tests (поднимает test postgres и применяет миграции)"
+    cmds:
+      - task: test:db:up
+      - task: test:db:migrate
+      - task: test:run
+
+  test:run:
+    desc: "Run tests only (если test postgres уже поднят и миграции применены)"
     dir: "{{.DB_SERVICE_DIR}}"
     cmds:
       - go test ./... -v

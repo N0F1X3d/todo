@@ -1,11 +1,15 @@
 package repository
 
 import (
+	"context"
 	"database/sql"
+	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/N0F1X3d/todo/db-service/internal/models"
 	"github.com/N0F1X3d/todo/pkg/logger"
+	"github.com/redis/go-redis/v9"
 )
 
 //go:generate mockery --name=TaskRepositoryInterface --filename=task_repository_interface.go --output=../../mocks --case=underscore
@@ -20,14 +24,74 @@ type TaskRepositoryInterface interface {
 // TaskRepository предоставляет методы для работы с PostgreSQL
 // Реализует паттерн Repository для абстракции доступа к данным
 type TaskRepository struct {
-	db  *sql.DB
-	log *logger.Logger
+	db          *sql.DB
+	log         *logger.Logger
+	redisClient *redis.Client
+	cacheTTL    time.Duration
 }
 
-func NewTaskRepository(db *sql.DB, log *logger.Logger) *TaskRepository {
+func NewTaskRepository(db *sql.DB, log *logger.Logger, redisClient *redis.Client, cacheTTL time.Duration) *TaskRepository {
 	return &TaskRepository{
-		db:  db,
-		log: log.WithComponent("repository").WithFunction("TaskRepository"),
+		db:          db,
+		log:         log.WithComponent("repository").WithFunction("TaskRepository"),
+		redisClient: redisClient,
+		cacheTTL:    cacheTTL,
+	}
+}
+
+func (r *TaskRepository) cacheKey(id int) string {
+	return fmt.Sprintf("task:%d", id)
+}
+
+func (r *TaskRepository) cacheEnabled() bool {
+	return r != nil && r.redisClient != nil && r.cacheTTL > 0
+}
+
+func (r *TaskRepository) setTaskCache(ctx context.Context, task *models.Task) {
+	if !r.cacheEnabled() || task == nil {
+		return
+	}
+
+	data, err := json.Marshal(task)
+	if err != nil {
+		r.log.Warn("failed to marshal task for cache", "function", "setTaskCache", "task_id", task.ID, "error", err)
+		return
+	}
+
+	if err := r.redisClient.Set(ctx, r.cacheKey(task.ID), data, r.cacheTTL).Err(); err != nil {
+		r.log.Warn("failed to set task cache", "function", "setTaskCache", "task_id", task.ID, "error", err)
+	}
+}
+
+func (r *TaskRepository) getTaskFromCache(ctx context.Context, id int) (*models.Task, bool) {
+	if !r.cacheEnabled() {
+		return nil, false
+	}
+
+	res, err := r.redisClient.Get(ctx, r.cacheKey(id)).Result()
+	if err != nil {
+		if err != redis.Nil {
+			r.log.Warn("failed to get task from cache", "function", "getTaskFromCache", "task_id", id, "error", err)
+		}
+		return nil, false
+	}
+
+	var task models.Task
+	if err := json.Unmarshal([]byte(res), &task); err != nil {
+		r.log.Warn("failed to unmarshal task from cache", "function", "getTaskFromCache", "task_id", id, "error", err)
+		return nil, false
+	}
+
+	return &task, true
+}
+
+func (r *TaskRepository) deleteTaskCache(ctx context.Context, id int) {
+	if !r.cacheEnabled() {
+		return
+	}
+
+	if err := r.redisClient.Del(ctx, r.cacheKey(id)).Err(); err != nil {
+		r.log.Warn("failed to delete task cache", "function", "deleteTaskCache", "task_id", id, "error", err)
 	}
 }
 
@@ -53,6 +117,10 @@ func (r *TaskRepository) CreateTask(req models.CreateTaskRequest) (*models.Task,
 		r.log.ErrorWithContext("failed to create task", err, op, "title", req.Title, "description", req.Description, "duration", duration)
 		return nil, err
 	}
+
+	// Кэшируем только что созданную задачу
+	r.setTaskCache(context.Background(), &task)
+
 	r.log.LogResponse(op, task)
 	logQueryResult(r.log, op, duration, 1)
 	return &task, nil
@@ -63,6 +131,14 @@ func (r *TaskRepository) GetTaskByID(id int) (*models.Task, error) {
 	const op = "GetTaskByID"
 	r.log.LogRequest(op, map[string]interface{}{"id": id})
 	start := time.Now()
+
+	// Сначала пробуем получить задачу из кеша
+	if taskFromCache, ok := r.getTaskFromCache(context.Background(), id); ok {
+		duration := time.Since(start).Milliseconds()
+		r.log.LogResponse(op, taskFromCache)
+		logQueryResult(r.log, op, duration, 1)
+		return taskFromCache, nil
+	}
 
 	var task models.Task
 
@@ -83,6 +159,9 @@ func (r *TaskRepository) GetTaskByID(id int) (*models.Task, error) {
 		}
 		return nil, err
 	}
+
+	// Обновляем кеш после успешного чтения из БД
+	r.setTaskCache(context.Background(), &task)
 
 	r.log.LogResponse(op, task)
 	logQueryResult(r.log, op, duration, 1)
@@ -150,6 +229,9 @@ func (r *TaskRepository) CompleteTask(id int) (*models.Task, error) {
 		return nil, err
 	}
 
+	// Обновляем кеш завершенной задачи (или добавляем, если ее не было)
+	r.setTaskCache(context.Background(), &task)
+
 	r.log.LogResponse(op, task)
 	logQueryResult(r.log, op, duration, 1)
 	return &task, nil
@@ -180,6 +262,9 @@ func (r *TaskRepository) DeleteTask(id int) error {
 		r.log.Warn("task not found for delete", "function", op, "id", id, "duration", duration)
 		return sql.ErrNoRows
 	}
+
+	// Удаляем задачу из кеша
+	r.deleteTaskCache(context.Background(), id)
 
 	r.log.LogResponse(op, map[string]interface{}{"deleted": true, "id": id})
 	logQueryResult(r.log, op, duration, rowsAffected)

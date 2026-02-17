@@ -19,6 +19,22 @@ services:
       timeout: 5s
       retries: 5
 
+  # NEW: Redis
+  redis:
+    image: redis:7-alpine
+    container_name: todo-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   db-service:
     container_name: todo-db-service
     build:
@@ -27,9 +43,29 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
-      GRPC_ADDR: ":50051"
-      POSTGRES_DSN: postgres://postgres:postgres@postgres:5432/tasks?sslmode=disable
+      # gRPC (твоя конфигурация читает GRPC_HOST и GRPC_PORT)
+      GRPC_HOST: 0.0.0.0
+      GRPC_PORT: 50051
+
+      # Postgres (твоя конфигурация читает DB_HOST/PORT/USER/PASSWORD/NAME/SSLMODE)
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: postgres
+      DB_PASSWORD: postgres
+      DB_NAME: tasks
+      DB_SSLMODE: disable
+      DB_TIMEOUT: 5s
+
+      # Redis (твоя конфигурация читает REDIS_*; включаем кэш)
+      REDIS_ENABLED: "true"
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      REDIS_DB: 0
+      REDIS_PASSWORD: ""
+      REDIS_TTL: 5m
     ports:
       - "50051:50051"
     restart: unless-stopped
@@ -50,6 +86,7 @@ services:
     ports:
       - "8080:8080"
     restart: unless-stopped
+
   zookeeper:
     image: confluentinc/cp-zookeeper:7.5.0
     container_name: todo-zookeeper
@@ -74,7 +111,7 @@ services:
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
-  
+
   event-logger-service:
     build:
       context: .
@@ -84,7 +121,27 @@ services:
     volumes:
       - ./logs:/logs
 
+  # NEW: postgres for tests (порт 5433)
+  postgres-test:
+    image: postgres:16
+    container_name: todo-postgres-test
+    profiles: ["test"]
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: test_user
+      POSTGRES_PASSWORD: test_password
+      POSTGRES_DB: todo_test
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U test_user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_data:
-  
+  redis_data:
+  postgres_test_data:

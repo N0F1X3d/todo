@@ -1,37 +1,42 @@
 package repository_test
 
 import (
+	"context"
 	"database/sql"
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/N0F1X3d/todo/db-service/internal/models"
 	"github.com/N0F1X3d/todo/db-service/internal/repository"
 	"github.com/N0F1X3d/todo/pkg/logger"
 
+	"github.com/alicebob/miniredis/v2"
+	"github.com/redis/go-redis/v9"
+
 	_ "github.com/lib/pq"
 )
 
-var testRepo *repository.TaskRepository
-var testDB *sql.DB
+var (
+	testRepo *repository.TaskRepository
+	testDB   *sql.DB
+
+	mr  *miniredis.Miniredis
+	rdb *redis.Client
+)
 
 func TestMain(m *testing.M) {
-	// Настройка тестовой БД
 	setup()
-
-	// Запуск тестов
 	code := m.Run()
-
-	// Очистка
 	teardown()
-
 	os.Exit(code)
 }
 
 func setup() {
 	// Подключение к тестовой БД
 	connStr := "user=test_user password=test_password dbname=todo_test host=localhost port=5433 sslmode=disable"
+
 	var err error
 	testDB, err = sql.Open("postgres", connStr)
 	if err != nil {
@@ -43,21 +48,44 @@ func setup() {
 		log.Fatal("Failed to ping test database:", err)
 	}
 
-	// Инициализация логгера (логи в тестах не нужны, но репозиторий требует)
+	// Поднимаем in-memory Redis для тестов
+	mr, err = miniredis.Run()
+	if err != nil {
+		log.Fatal("Failed to start miniredis:", err)
+	}
+
+	rdb = redis.NewClient(&redis.Options{Addr: mr.Addr()})
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		log.Fatal("Failed to ping redis:", err)
+	}
+
+	// Инициализация логгера (репозиторий требует)
 	testLogger := logger.New("db-service", "test-logs")
 
-	// Создание репозитория
-	testRepo = repository.NewTaskRepository(testDB, testLogger)
+	// Создание репозитория с Redis и TTL (кэш включён)
+	testRepo = repository.NewTaskRepository(testDB, testLogger, rdb, 5*time.Minute)
 
-	// Очистка таблицы перед тестами
-	cleanupDatabase()
+	// Чистим всё перед стартом
+	cleanupAll()
 }
 
 func teardown() {
-	cleanupDatabase()
-	if testDB != nil {
-		testDB.Close()
+	cleanupAll()
+
+	if rdb != nil {
+		_ = rdb.Close()
 	}
+	if mr != nil {
+		mr.Close()
+	}
+	if testDB != nil {
+		_ = testDB.Close()
+	}
+}
+
+func cleanupAll() {
+	cleanupDatabase()
+	cleanupRedis()
 }
 
 func cleanupDatabase() {
@@ -67,7 +95,16 @@ func cleanupDatabase() {
 	}
 }
 
+func cleanupRedis() {
+	if rdb == nil {
+		return
+	}
+	_ = rdb.FlushDB(context.Background()).Err()
+}
+
 func TestCreateTask(t *testing.T) {
+	cleanupAll()
+
 	req := models.CreateTaskRequest{
 		Title:       "Test Task",
 		Description: "Test Description",
@@ -93,6 +130,8 @@ func TestCreateTask(t *testing.T) {
 }
 
 func TestGetTaskByID(t *testing.T) {
+	cleanupAll()
+
 	// Сначала создаем задачу
 	req := models.CreateTaskRequest{
 		Title:       "Get Test Task",
@@ -103,7 +142,7 @@ func TestGetTaskByID(t *testing.T) {
 		t.Fatalf("Setup failed: %v", err)
 	}
 
-	// Потом получаем её
+	// Потом получаем её (может вернуться из кэша, т.к. CreateTask кэширует)
 	task, err := testRepo.GetTaskByID(createdTask.ID)
 	if err != nil {
 		t.Fatalf("GetTaskByID failed: %v", err)
@@ -118,8 +157,9 @@ func TestGetTaskByID(t *testing.T) {
 }
 
 func TestGetTaskByID_NotFound(t *testing.T) {
-	_, err := testRepo.GetTaskByID(99999) // Несуществующий ID
+	cleanupAll()
 
+	_, err := testRepo.GetTaskByID(99999) // Несуществующий ID
 	if err == nil {
 		t.Error("Expected error for non-existent task, got nil")
 	}
@@ -129,8 +169,7 @@ func TestGetTaskByID_NotFound(t *testing.T) {
 }
 
 func TestGetAllTasks(t *testing.T) {
-	// Очищаем базу
-	cleanupDatabase()
+	cleanupAll()
 
 	// Создаем несколько задач
 	tasksToCreate := []models.CreateTaskRequest{
@@ -157,6 +196,8 @@ func TestGetAllTasks(t *testing.T) {
 }
 
 func TestCompleteTask(t *testing.T) {
+	cleanupAll()
+
 	// Создаем задачу
 	req := models.CreateTaskRequest{
 		Title:       "Complete Test Task",
@@ -167,6 +208,9 @@ func TestCompleteTask(t *testing.T) {
 		t.Fatalf("Setup failed: %v", err)
 	}
 
+	// Чтобы updated_at точно изменился (иногда может совпасть по точности времени)
+	time.Sleep(5 * time.Millisecond)
+
 	// Отмечаем как выполненную
 	completedTask, err := testRepo.CompleteTask(createdTask.ID)
 	if err != nil {
@@ -176,12 +220,17 @@ func TestCompleteTask(t *testing.T) {
 	if !completedTask.Completed {
 		t.Error("Expected task to be completed")
 	}
-	if completedTask.UpdatedAt.Equal(createdTask.UpdatedAt) {
-		t.Error("Expected updated_at to change after completion")
+
+	// Более корректная проверка, чем Equal(): time может быть с разной точностью/округлением
+	if !completedTask.UpdatedAt.After(createdTask.UpdatedAt) {
+		t.Errorf("Expected updated_at to be after previous updated_at. before=%v after=%v",
+			createdTask.UpdatedAt, completedTask.UpdatedAt)
 	}
 }
 
 func TestDeleteTask(t *testing.T) {
+	cleanupAll()
+
 	// Создаем задачу
 	req := models.CreateTaskRequest{
 		Title:       "Delete Test Task",
@@ -198,9 +247,52 @@ func TestDeleteTask(t *testing.T) {
 		t.Fatalf("DeleteTask failed: %v", err)
 	}
 
-	// Проверяем что задача удалена
+	// Проверяем что задача удалена (и из БД, и из кэша)
 	_, err = testRepo.GetTaskByID(createdTask.ID)
 	if err != sql.ErrNoRows {
-		t.Error("Expected task to be deleted, but it still exists")
+		t.Errorf("Expected sql.ErrNoRows after delete, got %v", err)
+	}
+}
+
+// Дополнительный тест: проверяем, что кэш действительно отдаёт данные
+// даже если строку в БД удалить напрямую (то есть проверяем интеграцию с Redis).
+func TestGetTaskByID_UsesCache_WhenRowDeleted(t *testing.T) {
+	cleanupAll()
+
+	req := models.CreateTaskRequest{
+		Title:       "Cache Test Task",
+		Description: "Cache Test Description",
+	}
+
+	createdTask, err := testRepo.CreateTask(req)
+	if err != nil {
+		t.Fatalf("Setup failed: %v", err)
+	}
+
+	// На всякий случай дернем GetTaskByID (если вдруг в будущем CreateTask перестанет кэшировать)
+	_, err = testRepo.GetTaskByID(createdTask.ID)
+	if err != nil {
+		t.Fatalf("GetTaskByID failed: %v", err)
+	}
+
+	// Удаляем строку из БД напрямую (имитируем ситуацию, когда БД "не содержит" запись)
+	_, err = testDB.Exec("DELETE FROM tasks WHERE id = $1", createdTask.ID)
+	if err != nil {
+		t.Fatalf("Failed to delete task row directly: %v", err)
+	}
+
+	// Если кэш работает — задача вернётся из Redis, несмотря на отсутствие в БД
+	task, err := testRepo.GetTaskByID(createdTask.ID)
+	if err != nil {
+		t.Fatalf("Expected task from cache, got error: %v", err)
+	}
+	if task.ID != createdTask.ID {
+		t.Fatalf("Expected ID %d, got %d", createdTask.ID, task.ID)
+	}
+	if task.Title != req.Title {
+		t.Fatalf("Expected title %q, got %q", req.Title, task.Title)
+	}
+	if task.Description != req.Description {
+		t.Fatalf("Expected description %q, got %q", req.Description, task.Description)
 	}
 }

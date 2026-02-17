@@ -11,11 +11,14 @@ import (
 	"time"
 
 	"github.com/golang-migrate/migrate/v4"
-	_ "github.com/golang-migrate/migrate/v4/database/postgres"
+	migratepg "github.com/golang-migrate/migrate/v4/database/postgres"
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	_ "github.com/lib/pq"
 	"google.golang.org/grpc"
 
+	"github.com/redis/go-redis/v9"
+
+	appconfig "github.com/N0F1X3d/todo/db-service/internal/config"
 	"github.com/N0F1X3d/todo/db-service/internal/repository"
 	"github.com/N0F1X3d/todo/db-service/internal/server"
 	"github.com/N0F1X3d/todo/db-service/internal/service"
@@ -28,16 +31,22 @@ func main() {
 	// ========================
 	// Config
 	// ========================
-	grpcAddr := getEnv("GRPC_ADDR", ":50051")
-	dbDSN := getEnv(
-		"POSTGRES_DSN",
-		"postgres://postgres:postgres@postgres:5432/tasks?sslmode=disable",
-	)
+	cfg, err := appconfig.Load(appconfig.GetConfigPath())
+	if err != nil {
+		log.Fatalf("failed to load config: %v", err)
+	}
+
+	if err := cfg.Validate(); err != nil {
+		log.Fatalf("invalid config: %v", err)
+	}
+
+	grpcAddr := cfg.GRPC.Address()
+	dbDSN := cfg.DB.DSNWithTimeout()
 
 	// ========================
 	// Logger
 	// ========================
-	logg := logger.New("db-service", "main-logs").WithComponent("main")
+	logg := logger.New(cfg.App.Name, "main-logs").WithComponent("main")
 
 	// ========================
 	// Database
@@ -57,9 +66,35 @@ func main() {
 	logg.Info("connected to postgres")
 
 	// ========================
+	// Redis (кеш задач)
+	// ========================
+	var redisClient *redis.Client
+	if cfg.Redis.Enabled {
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:     cfg.Redis.Address(),
+			Password: cfg.Redis.Password,
+			DB:       cfg.Redis.DB,
+		})
+
+		redisCtx, redisCancel := context.WithTimeout(context.Background(), 3*time.Second)
+		defer redisCancel()
+
+		if err := redisClient.Ping(redisCtx).Err(); err != nil {
+			logg.Warn("failed to connect to redis, caching disabled", "error", err)
+			redisClient = nil
+		} else {
+			logg.Info("connected to redis",
+				"addr", cfg.Redis.Address(),
+				"db", cfg.Redis.DB,
+				"ttl", cfg.Redis.TTL.String(),
+			)
+		}
+	}
+
+	// ========================
 	// Migrations
 	// ========================
-	runMigrations(dbDSN)
+	runMigrations(db)
 
 	defer func() {
 		if err := db.Close(); err != nil {
@@ -70,7 +105,7 @@ func main() {
 	// ========================
 	// Repository
 	// ========================
-	taskRepo := repository.NewTaskRepository(db, logg)
+	taskRepo := repository.NewTaskRepository(db, logg, redisClient, cfg.Redis.TTL)
 
 	// ========================
 	// Service
@@ -114,6 +149,8 @@ func main() {
 	logg.Info("server stopped gracefully")
 }
 
+// getEnv оставлен для обратной совместимости, но не используется
+// в текущей версии, где конфигурация загружается через cleanenv.
 func getEnv(key, defaultVal string) string {
 	if v := os.Getenv(key); v != "" {
 		return v
@@ -121,10 +158,18 @@ func getEnv(key, defaultVal string) string {
 	return defaultVal
 }
 
-func runMigrations(dbURL string) {
-	m, err := migrate.New(
+// runMigrations применяет миграции через уже открытое соединение *sql.DB.
+// Это решает проблему "no scheme", потому что migrate.New(...) ожидает URL вида postgres://...
+func runMigrations(db *sql.DB) {
+	driver, err := migratepg.WithInstance(db, &migratepg.Config{})
+	if err != nil {
+		log.Fatalf("migration driver init error: %v", err)
+	}
+
+	m, err := migrate.NewWithDatabaseInstance(
 		"file:///app/migrations",
-		dbURL,
+		"postgres",
+		driver,
 	)
 	if err != nil {
 		log.Fatalf("migration init error: %v", err)

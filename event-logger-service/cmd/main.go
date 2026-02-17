@@ -14,7 +14,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// 📁 создаём файл логов
+	// создаём файл логов
 	logFile, err := os.OpenFile(
 		"/logs/events.log",
 		os.O_CREATE|os.O_WRONLY|os.O_APPEND,
